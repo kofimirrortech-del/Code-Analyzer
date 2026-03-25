@@ -5,7 +5,9 @@ import { z } from "zod/v4";
 export const storeItemsTable = pgTable("store_items", {
   id: serial("id").primaryKey(),
   itemName: text("item_name").notNull(),
-  quantity: numeric("quantity", { precision: 10, scale: 2 }).notNull(),
+  quantity: numeric("quantity", { precision: 10, scale: 2 }).notNull().default("0"),
+  addedStock: numeric("added_stock", { precision: 10, scale: 2 }).notNull().default("0"),
+  unit: text("unit").notNull().default("units"),
   supplier: text("supplier").notNull(),
   date: text("date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -32,6 +34,7 @@ export const productionBatchesTable = pgTable("production_batches", {
   id: serial("id").primaryKey(),
   product: text("product").notNull(),
   quantityProduced: numeric("quantity_produced", { precision: 10, scale: 2 }).notNull(),
+  unit: text("unit").notNull().default("units"),
   baker: text("baker").notNull(),
   date: text("date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -44,7 +47,8 @@ export type ProductionBatch = typeof productionBatchesTable.$inferSelect;
 export const packagesTable = pgTable("packages", {
   id: serial("id").primaryKey(),
   packageType: text("package_type").notNull(),
-  stock: numeric("stock", { precision: 10, scale: 2 }).notNull(),
+  stock: numeric("stock", { precision: 10, scale: 2 }).notNull().default("0"),
+  addedStock: numeric("added_stock", { precision: 10, scale: 2 }).notNull().default("0"),
   expiryDate: text("expiry_date").notNull(),
   date: text("date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -56,10 +60,11 @@ export type Package = typeof packagesTable.$inferSelect;
 
 export const ordersTable = pgTable("orders", {
   id: serial("id").primaryKey(),
-  client: text("client").notNull(),
-  status: text("status").notNull().default("Pending"),
-  deliveryDate: text("delivery_date").notNull(),
-  total: numeric("total", { precision: 12, scale: 2 }).notNull(),
+  notes: text("notes").default(""),
+  item: text("item").notNull().default(""),
+  quantity: numeric("quantity", { precision: 10, scale: 2 }).notNull().default("0"),
+  unitCost: numeric("unit_cost", { precision: 12, scale: 2 }).notNull().default("0"),
+  total: numeric("total", { precision: 12, scale: 2 }).notNull().default("0"),
   date: text("date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

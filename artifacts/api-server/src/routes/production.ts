@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, productionBatchesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { requireAuth } from "./auth.js";
 import { z } from "zod";
 
@@ -8,7 +8,8 @@ const router: IRouter = Router();
 
 const bodySchema = z.object({
   product: z.string().min(1),
-  quantityProduced: z.coerce.number(),
+  quantityProduced: z.coerce.number().min(0),
+  unit: z.string().min(1).default("units"),
   baker: z.string().min(1),
 });
 
@@ -16,44 +17,50 @@ function today() {
   return new Date().toISOString().split("T")[0];
 }
 
+function formatBatch(b: typeof productionBatchesTable.$inferSelect) {
+  return {
+    id: b.id,
+    product: b.product,
+    quantityProduced: parseFloat(b.quantityProduced ?? "0"),
+    unit: b.unit ?? "units",
+    baker: b.baker,
+    date: b.date,
+    createdAt: b.createdAt.toISOString(),
+  };
+}
+
 router.get("/", requireAuth, async (req: Request, res: Response) => {
-  const date = (req.query.date as string) || today();
-  const items = await db.select().from(productionBatchesTable)
-    .where(eq(productionBatchesTable.date, date))
-    .orderBy(productionBatchesTable.createdAt);
-  res.json(items.map(i => ({
-    id: i.id,
-    product: i.product,
-    quantityProduced: parseFloat(i.quantityProduced),
-    baker: i.baker,
-    date: i.date,
-    createdAt: i.createdAt.toISOString(),
-  })));
+  const items = await db.select().from(productionBatchesTable).orderBy(desc(productionBatchesTable.createdAt));
+  res.json(items.map(formatBatch));
 });
 
 router.post("/", requireAuth, async (req: Request, res: Response) => {
   const parsed = bodySchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid input" }); return; }
+  const d = parsed.data;
   const [item] = await db.insert(productionBatchesTable).values({
-    product: parsed.data.product,
-    quantityProduced: String(parsed.data.quantityProduced),
-    baker: parsed.data.baker,
+    product: d.product,
+    quantityProduced: String(d.quantityProduced),
+    unit: d.unit,
+    baker: d.baker,
     date: today(),
   }).returning();
-  res.status(201).json({ id: item.id, product: item.product, quantityProduced: parseFloat(item.quantityProduced), baker: item.baker, date: item.date, createdAt: item.createdAt.toISOString() });
+  res.status(201).json(formatBatch(item));
 });
 
 router.put("/:id", requireAuth, async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
   const parsed = bodySchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid input" }); return; }
+  const d = parsed.data;
   const [item] = await db.update(productionBatchesTable).set({
-    product: parsed.data.product,
-    quantityProduced: String(parsed.data.quantityProduced),
-    baker: parsed.data.baker,
+    product: d.product,
+    quantityProduced: String(d.quantityProduced),
+    unit: d.unit,
+    baker: d.baker,
   }).where(eq(productionBatchesTable.id, id)).returning();
   if (!item) { res.status(404).json({ error: "Not found" }); return; }
-  res.json({ id: item.id, product: item.product, quantityProduced: parseFloat(item.quantityProduced), baker: item.baker, date: item.date, createdAt: item.createdAt.toISOString() });
+  res.json(formatBatch(item));
 });
 
 router.delete("/:id", requireAuth, async (req: Request, res: Response) => {

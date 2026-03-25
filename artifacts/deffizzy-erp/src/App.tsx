@@ -4,7 +4,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { useAuth } from "@/hooks/use-auth";
-import { Layout } from "@/components/Layout";
+import { Layout, NAV_ITEMS } from "@/components/Layout";
+import { AuthUserRole } from "@workspace/api-client-react";
 
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
@@ -19,16 +20,24 @@ import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient();
 
-// A simple protected route wrapper
-function ProtectedRoute({ component: Component, ...rest }: any) {
+function ProtectedRoute({ component: Component, requiredRoles }: { component: React.ComponentType<any>, requiredRoles?: string[] }) {
   const { user, isLoading } = useAuth();
   
-  if (isLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+  if (isLoading) return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
   if (!user) return <Redirect to="/login" />;
+
+  if (requiredRoles && !requiredRoles.includes(user.role)) {
+    const firstAllowed = NAV_ITEMS.find(item => item.roles.includes(user.role as any));
+    return <Redirect to={firstAllowed?.path ?? "/history"} />;
+  }
 
   return (
     <Layout>
-      <Component {...rest} />
+      <Component />
     </Layout>
   );
 }
@@ -38,12 +47,12 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       
-      <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
-      <Route path="/store" component={() => <ProtectedRoute component={Store} />} />
-      <Route path="/ingredients" component={() => <ProtectedRoute component={Ingredients} />} />
-      <Route path="/production" component={() => <ProtectedRoute component={Production} />} />
-      <Route path="/packaging" component={() => <ProtectedRoute component={Packaging} />} />
-      <Route path="/dispatch" component={() => <ProtectedRoute component={Dispatch} />} />
+      <Route path="/" component={() => <ProtectedRoute component={Dashboard} requiredRoles={[AuthUserRole.ADMIN]} />} />
+      <Route path="/store" component={() => <ProtectedRoute component={Store} requiredRoles={[AuthUserRole.ADMIN, AuthUserRole.STORE]} />} />
+      <Route path="/ingredients" component={() => <ProtectedRoute component={Ingredients} requiredRoles={[AuthUserRole.ADMIN, AuthUserRole.INGREDIENT]} />} />
+      <Route path="/production" component={() => <ProtectedRoute component={Production} requiredRoles={[AuthUserRole.ADMIN, AuthUserRole.PRODUCTION]} />} />
+      <Route path="/packaging" component={() => <ProtectedRoute component={Packaging} requiredRoles={[AuthUserRole.ADMIN, AuthUserRole.PACKAGE]} />} />
+      <Route path="/dispatch" component={() => <ProtectedRoute component={Dispatch} requiredRoles={[AuthUserRole.ADMIN, AuthUserRole.DISPATCH]} />} />
       <Route path="/history" component={() => <ProtectedRoute component={History} />} />
 
       <Route component={NotFound} />

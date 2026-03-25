@@ -95,3 +95,26 @@ Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHea
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+
+## DEFFIZZY BAKE ERP — Feature Notes
+
+### Authentication & Roles
+- Roles: `ADMIN`, `STORE`, `INGREDIENT`, `PRODUCTION`, `PACKAGE`, `DISPATCH`
+- Dashboard (`/`) is restricted to **ADMIN only** — other roles are redirected to their first permitted page
+- Auth endpoints: `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`
+- Session cookie-based auth with `requireAuth` middleware
+
+### Database Schema (`lib/db/src/schema/erp.ts`)
+- **store_items**: `itemName`, `quantity`, `addedStock`, `unit`, `supplier`, `date`
+  - `totalStock` is **computed** at API level: `quantity + addedStock`
+- **production_batches**: `product`, `quantityProduced`, `unit`, `baker`, `date`
+- **packages**: `packageType`, `stock`, `addedStock`, `expiryDate`, `date`
+  - `totalStock` is **computed** at API level: `stock + addedStock`
+- **orders** (Dispatch): `notes`, `item`, `quantity`, `unitCost`, `total`, `date`
+  - `total` is **auto-calculated** server-side: `quantity × unitCost`
+
+### Frontend Pages
+- **Store**: 9-column table — #, Item Name, Quantity, Added Stock, Total Stock, Unit, Supplier, Date, Actions
+- **Production**: 7-column table — Batch #, Product, Qty Produced, Unit, Baker, Date Logged, Actions
+- **Packaging**: 8-column table — #, Package Type, Stock, Added Stock, Total Stock, Expiry Date, Date Added, Actions
+- **Dispatch**: 8-column table — #, Notes, Item, Quantity, Unit Cost (₵), Total (₵), Date, Actions; live total preview in form; summary cards with grand total

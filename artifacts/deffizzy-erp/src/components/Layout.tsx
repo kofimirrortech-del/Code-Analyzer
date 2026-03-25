@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { AuthUserRole } from "@workspace/api-client-react";
 
 const NAV_ITEMS = [
-  { path: "/", label: "Dashboard", icon: LayoutGrid, roles: Object.values(AuthUserRole) },
+  { path: "/", label: "Dashboard", icon: LayoutGrid, roles: [AuthUserRole.ADMIN] },
   { path: "/store", label: "Store", icon: Package, roles: [AuthUserRole.ADMIN, AuthUserRole.STORE] },
   { path: "/ingredients", label: "Ingredients", icon: Wheat, roles: [AuthUserRole.ADMIN, AuthUserRole.INGREDIENT] },
   { path: "/production", label: "Production", icon: Factory, roles: [AuthUserRole.ADMIN, AuthUserRole.PRODUCTION] },
@@ -19,12 +19,13 @@ const NAV_ITEMS = [
   { path: "/history", label: "History", icon: HistoryIcon, roles: Object.values(AuthUserRole) },
 ];
 
+export { NAV_ITEMS };
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { user, logout, isLoggingOut } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
-  // Close mobile menu on route change
   React.useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location]);
@@ -91,12 +92,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background flex w-full overflow-hidden selection:bg-primary/30">
-      {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-72 flex-col glass-panel border-y-0 border-l-0 rounded-none z-20">
         <SidebarContent />
       </aside>
 
-      {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 glass-panel border-x-0 border-t-0 rounded-none z-30 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <ChefHat className="w-6 h-6 text-accent" />
@@ -107,7 +106,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </button>
       </div>
 
-      {/* Mobile Sidebar Overlay */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
@@ -126,9 +124,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden pt-16 lg:pt-0 relative">
-        {/* Subtle background glow */}
         <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-accent/5 blur-[120px] pointer-events-none" />
         
