@@ -1,22 +1,37 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 1.0.0
+  description: DEFFIZZY BAKE ERP API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: dashboard
+    description: Dashboard stats
+  - name: store
+    description: Store inventory
+  - name: ingredients
+    description: Ingredient stock
+  - name: production
+    description: Production batches
+  - name: packages
+    description: Packaging stock
+  - name: dispatch
+    description: Orders and dispatch
+  - name: history
+    description: Historical data backup
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +39,494 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Get dashboard stats
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+          description: "Date in YYYY-MM-DD format (defaults to today)"
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /history/dates:
+    get:
+      operationId: getHistoryDates
+      tags: [history]
+      summary: Get all dates that have data
+      responses:
+        "200":
+          description: List of date strings (YYYY-MM-DD)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /history/summary:
+    get:
+      operationId: getHistorySummary
+      tags: [history]
+      summary: Get full data summary for a specific date
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+          description: "Date in YYYY-MM-DD format"
+      responses:
+        "200":
+          description: Full day summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DaySummary"
+
+  /store:
+    get:
+      operationId: listStoreItems
+      tags: [store]
+      summary: List store items
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+          description: "Date in YYYY-MM-DD format (defaults to today)"
+      responses:
+        "200":
+          description: List of store items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StoreItem"
+    post:
+      operationId: createStoreItem
+      tags: [store]
+      summary: Create store item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStoreItem"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreItem"
+
+  /store/{id}:
+    put:
+      operationId: updateStoreItem
+      tags: [store]
+      summary: Update store item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStoreItem"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreItem"
+    delete:
+      operationId: deleteStoreItem
+      tags: [store]
+      summary: Delete store item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /ingredients:
+    get:
+      operationId: listIngredients
+      tags: [ingredients]
+      summary: List ingredients
+      responses:
+        "200":
+          description: List of ingredients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ingredient"
+    post:
+      operationId: createIngredient
+      tags: [ingredients]
+      summary: Create ingredient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIngredient"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ingredient"
+
+  /ingredients/{id}:
+    put:
+      operationId: updateIngredient
+      tags: [ingredients]
+      summary: Update ingredient
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIngredient"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ingredient"
+    delete:
+      operationId: deleteIngredient
+      tags: [ingredients]
+      summary: Delete ingredient
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /production:
+    get:
+      operationId: listProductionBatches
+      tags: [production]
+      summary: List production batches
+      responses:
+        "200":
+          description: List of production batches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductionBatch"
+    post:
+      operationId: createProductionBatch
+      tags: [production]
+      summary: Create production batch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductionBatch"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionBatch"
+
+  /production/{id}:
+    put:
+      operationId: updateProductionBatch
+      tags: [production]
+      summary: Update production batch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductionBatch"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductionBatch"
+    delete:
+      operationId: deleteProductionBatch
+      tags: [production]
+      summary: Delete production batch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /packages:
+    get:
+      operationId: listPackages
+      tags: [packages]
+      summary: List packages
+      responses:
+        "200":
+          description: List of packages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Package"
+    post:
+      operationId: createPackage
+      tags: [packages]
+      summary: Create package
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePackage"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Package"
+
+  /packages/{id}:
+    put:
+      operationId: updatePackage
+      tags: [packages]
+      summary: Update package
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePackage"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Package"
+    delete:
+      operationId: deletePackage
+      tags: [packages]
+      summary: Delete package
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /dispatch:
+    get:
+      operationId: listOrders
+      tags: [dispatch]
+      summary: List orders
+      responses:
+        "200":
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+    post:
+      operationId: createOrder
+      tags: [dispatch]
+      summary: Create order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrder"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+  /dispatch/{id}:
+    put:
+      operationId: updateOrder
+      tags: [dispatch]
+      summary: Update order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrder"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+    delete:
+      operationId: deleteOrder
+      tags: [dispatch]
+      summary: Delete order
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +534,245 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required: [success]
+
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required: [username, password]
+
+    AuthUser:
+      type: object
+      properties:
+        username:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, STORE, INGREDIENT, PRODUCTION, PACKAGE, DISPATCH]
+      required: [username, role]
+
+    LowStockItem:
+      type: object
+      properties:
+        name:
+          type: string
+        quantity:
+          type: number
+      required: [name, quantity]
+
+    DashboardStats:
+      type: object
+      properties:
+        totalInventory:
+          type: number
+        totalProduced:
+          type: number
+        totalOrders:
+          type: integer
+        totalRevenue:
+          type: number
+        lowStockItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/LowStockItem"
+        recentOrders:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+      required: [totalInventory, totalProduced, totalOrders, totalRevenue, lowStockItems, recentOrders]
+
+    StoreItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        itemName:
+          type: string
+        quantity:
+          type: number
+        supplier:
+          type: string
+        createdAt:
+          type: string
+      required: [id, itemName, quantity, supplier, createdAt]
+
+    CreateStoreItem:
+      type: object
+      properties:
+        itemName:
+          type: string
+        quantity:
+          type: number
+        supplier:
+          type: string
+      required: [itemName, quantity, supplier]
+
+    Ingredient:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        stock:
+          type: number
+        unit:
+          type: string
+        createdAt:
+          type: string
+      required: [id, name, stock, unit, createdAt]
+
+    CreateIngredient:
+      type: object
+      properties:
+        name:
+          type: string
+        stock:
+          type: number
+        unit:
+          type: string
+      required: [name, stock, unit]
+
+    ProductionBatch:
+      type: object
+      properties:
+        id:
+          type: integer
+        product:
+          type: string
+        quantityProduced:
+          type: number
+        baker:
+          type: string
+        createdAt:
+          type: string
+      required: [id, product, quantityProduced, baker, createdAt]
+
+    CreateProductionBatch:
+      type: object
+      properties:
+        product:
+          type: string
+        quantityProduced:
+          type: number
+        baker:
+          type: string
+      required: [product, quantityProduced, baker]
+
+    Package:
+      type: object
+      properties:
+        id:
+          type: integer
+        packageType:
+          type: string
+        stock:
+          type: number
+        expiryDate:
+          type: string
+        createdAt:
+          type: string
+      required: [id, packageType, stock, expiryDate, createdAt]
+
+    CreatePackage:
+      type: object
+      properties:
+        packageType:
+          type: string
+        stock:
+          type: number
+        expiryDate:
+          type: string
+      required: [packageType, stock, expiryDate]
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+        client:
+          type: string
+        status:
+          type: string
+          enum: [Pending, Processing, Dispatched, Delivered, Cancelled]
+        deliveryDate:
+          type: string
+        total:
+          type: number
+        createdAt:
+          type: string
+      required: [id, client, status, deliveryDate, total, createdAt]
+
+    CreateOrder:
+      type: object
+      properties:
+        client:
+          type: string
+        status:
+          type: string
+          enum: [Pending, Processing, Dispatched, Delivered, Cancelled]
+        deliveryDate:
+          type: string
+        total:
+          type: number
+      required: [client, status, deliveryDate, total]
+
+    DayStats:
+      type: object
+      properties:
+        totalInventory:
+          type: number
+        totalProduced:
+          type: number
+        totalOrders:
+          type: integer
+        totalRevenue:
+          type: number
+      required: [totalInventory, totalProduced, totalOrders, totalRevenue]
+
+    DaySummary:
+      type: object
+      properties:
+        date:
+          type: string
+        store:
+          type: array
+          items:
+            $ref: "#/components/schemas/StoreItem"
+        ingredients:
+          type: array
+          items:
+            $ref: "#/components/schemas/Ingredient"
+        production:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductionBatch"
+        packages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Package"
+        orders:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+        stats:
+          $ref: "#/components/schemas/DayStats"
+      required: [date, store, ingredients, production, packages, orders, stats]
