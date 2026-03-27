@@ -1,6 +1,5 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { format } from "date-fns";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -16,7 +15,10 @@ export function formatCedi(amount: number): string {
 
 export function formatDate(dateStr: string): string {
   try {
-    return format(new Date(dateStr), "MMM dd, yyyy HH:mm");
+    return new Intl.DateTimeFormat("en-GB", {
+      year: "numeric", month: "short", day: "2-digit",
+      hour: "2-digit", minute: "2-digit",
+    }).format(new Date(dateStr));
   } catch {
     return dateStr;
   }
@@ -24,7 +26,9 @@ export function formatDate(dateStr: string): string {
 
 export function formatShortDate(dateStr: string): string {
   try {
-    return format(new Date(dateStr), "MMM dd, yyyy");
+    return new Intl.DateTimeFormat("en-GB", {
+      year: "numeric", month: "short", day: "2-digit",
+    }).format(new Date(dateStr));
   } catch {
     return dateStr;
   }
