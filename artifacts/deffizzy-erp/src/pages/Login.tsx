@@ -30,28 +30,29 @@ export default function Login() {
     setErrorMsg("");
     try {
       await login({ data });
-    } catch (err: any) {
+    } catch {
       setErrorMsg("Invalid credentials. Please check and try again.");
     }
   };
 
   return (
     <div className="min-h-screen bg-background flex relative overflow-hidden selection:bg-primary/30">
-      {/* Abstract Background Image via requirements.yaml */}
-      <div className="absolute inset-0 z-0 opacity-40 mix-blend-screen">
-        <img 
-          src={`${import.meta.env.BASE_URL}images/login-bg.png`} 
-          alt="Premium Dark Wave Background" 
-          className="w-full h-full object-cover"
-        />
+      {/* CSS gradient background — replaces the large PNG asset */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a1a] via-[#0d0d2b] to-[#0a0a1a]" />
+        <div className="absolute top-0 left-0 w-full h-full opacity-30">
+          <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-purple-900/40 blur-[120px]" />
+          <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[60%] rounded-full bg-indigo-900/40 blur-[120px]" />
+          <div className="absolute top-[30%] right-[20%] w-[30%] h-[40%] rounded-full bg-amber-900/20 blur-[80px]" />
+        </div>
       </div>
-      <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/80 to-background z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-background/60 to-background/90 z-[1]" />
 
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-4">
         <motion.div 
           initial={{ opacity: 0, y: 30, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           className="w-full max-w-md glass-panel p-8 sm:p-10 rounded-3xl"
         >
           <div className="flex flex-col items-center mb-10 text-center">
@@ -68,34 +69,20 @@ export default function Login() {
                 {errorMsg}
               </div>
             )}
-            
             <div className="space-y-1">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pl-1">Username</label>
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input 
-                  {...register("username")} 
-                  className="pl-11 h-14 text-base" 
-                  placeholder="Enter your username"
-                  error={errors.username?.message}
-                />
+                <Input {...register("username")} className="pl-11 h-14 text-base" placeholder="Enter your username" error={errors.username?.message} />
               </div>
             </div>
-
             <div className="space-y-1">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pl-1">Password</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input 
-                  type="password" 
-                  {...register("password")} 
-                  className="pl-11 h-14 text-base" 
-                  placeholder="Enter your password"
-                  error={errors.password?.message}
-                />
+                <Input type="password" {...register("password")} className="pl-11 h-14 text-base" placeholder="Enter your password" error={errors.password?.message} />
               </div>
             </div>
-
             <Button type="submit" className="w-full h-14 text-base mt-4" isLoading={isLoggingIn}>
               Sign In to System
             </Button>

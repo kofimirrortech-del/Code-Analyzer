@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
+import * as React from "react";
+import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,10 +16,9 @@ import Production from "@/pages/Production";
 import Packaging from "@/pages/Packaging";
 import Dispatch from "@/pages/Dispatch";
 import History from "@/pages/History";
-
 import NotFound from "@/pages/not-found";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 30000, retry: 1 } } });
 
 function ProtectedRoute({ component: Component, requiredRoles }: { component: React.ComponentType<any>, requiredRoles?: string[] }) {
   const { user, isLoading } = useAuth();
@@ -31,30 +31,25 @@ function ProtectedRoute({ component: Component, requiredRoles }: { component: Re
   if (!user) return <Redirect to="/login" />;
 
   if (requiredRoles && !requiredRoles.includes(user.role)) {
-    const firstAllowed = NAV_ITEMS.find(item => item.roles.includes(user.role as any));
+    const firstAllowed = NAV_ITEMS.find(item => item.roles.includes(user.role));
     return <Redirect to={firstAllowed?.path ?? "/history"} />;
   }
 
-  return (
-    <Layout>
-      <Component />
-    </Layout>
-  );
+  return <Layout><Component /></Layout>;
 }
 
 function Router() {
+  const allRoles = Object.values(AuthUserRole) as string[];
   return (
     <Switch>
       <Route path="/login" component={Login} />
-      
-      <Route path="/" component={() => <ProtectedRoute component={Dashboard} requiredRoles={[AuthUserRole.ADMIN]} />} />
+      <Route path="/" component={() => <ProtectedRoute component={Dashboard} requiredRoles={allRoles} />} />
       <Route path="/store" component={() => <ProtectedRoute component={Store} requiredRoles={[AuthUserRole.ADMIN, AuthUserRole.STORE]} />} />
       <Route path="/ingredients" component={() => <ProtectedRoute component={Ingredients} requiredRoles={[AuthUserRole.ADMIN, AuthUserRole.INGREDIENT]} />} />
       <Route path="/production" component={() => <ProtectedRoute component={Production} requiredRoles={[AuthUserRole.ADMIN, AuthUserRole.PRODUCTION]} />} />
       <Route path="/packaging" component={() => <ProtectedRoute component={Packaging} requiredRoles={[AuthUserRole.ADMIN, AuthUserRole.PACKAGE]} />} />
       <Route path="/dispatch" component={() => <ProtectedRoute component={Dispatch} requiredRoles={[AuthUserRole.ADMIN, AuthUserRole.DISPATCH]} />} />
-      <Route path="/history" component={() => <ProtectedRoute component={History} />} />
-
+      <Route path="/history" component={() => <ProtectedRoute component={History} requiredRoles={allRoles} />} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -10,6 +10,8 @@ const bodySchema = z.object({
   itemName: z.string().min(1),
   quantity: z.coerce.number().default(0),
   addedStock: z.coerce.number().default(0),
+  closingStock: z.coerce.number().default(0),
+  lowStockThreshold: z.coerce.number().default(0),
   unit: z.string().min(1).default("units"),
   supplier: z.string().min(1),
 });
@@ -21,12 +23,18 @@ function today() {
 function formatItem(i: typeof storeItemsTable.$inferSelect) {
   const qty = parseFloat(i.quantity ?? "0");
   const added = parseFloat(i.addedStock ?? "0");
+  const closing = parseFloat(i.closingStock ?? "0");
+  const threshold = parseFloat(i.lowStockThreshold ?? "0");
+  const totalStock = qty + added;
   return {
     id: i.id,
     itemName: i.itemName,
     quantity: qty,
     addedStock: added,
-    totalStock: qty + added,
+    totalStock,
+    closingStock: closing,
+    lowStockThreshold: threshold,
+    isLowStock: threshold > 0 && totalStock < threshold,
     unit: i.unit ?? "units",
     supplier: i.supplier,
     date: i.date,
@@ -47,6 +55,8 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     itemName: d.itemName,
     quantity: String(d.quantity),
     addedStock: String(d.addedStock),
+    closingStock: String(d.closingStock),
+    lowStockThreshold: String(d.lowStockThreshold),
     unit: d.unit,
     supplier: d.supplier,
     date: today(),
@@ -63,6 +73,8 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
     itemName: d.itemName,
     quantity: String(d.quantity),
     addedStock: String(d.addedStock),
+    closingStock: String(d.closingStock),
+    lowStockThreshold: String(d.lowStockThreshold),
     unit: d.unit,
     supplier: d.supplier,
   }).where(eq(storeItemsTable.id, id)).returning();

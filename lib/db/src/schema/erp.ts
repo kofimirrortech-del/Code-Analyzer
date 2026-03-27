@@ -7,6 +7,8 @@ export const storeItemsTable = pgTable("store_items", {
   itemName: text("item_name").notNull(),
   quantity: numeric("quantity", { precision: 10, scale: 2 }).notNull().default("0"),
   addedStock: numeric("added_stock", { precision: 10, scale: 2 }).notNull().default("0"),
+  closingStock: numeric("closing_stock", { precision: 10, scale: 2 }).notNull().default("0"),
+  lowStockThreshold: numeric("low_stock_threshold", { precision: 10, scale: 2 }).notNull().default("0"),
   unit: text("unit").notNull().default("units"),
   supplier: text("supplier").notNull(),
   date: text("date"),
@@ -36,6 +38,7 @@ export const productionBatchesTable = pgTable("production_batches", {
   quantityProduced: numeric("quantity_produced", { precision: 10, scale: 2 }).notNull(),
   unit: text("unit").notNull().default("units"),
   baker: text("baker").notNull(),
+  note: text("note").default(""),
   date: text("date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -49,7 +52,8 @@ export const packagesTable = pgTable("packages", {
   packageType: text("package_type").notNull(),
   stock: numeric("stock", { precision: 10, scale: 2 }).notNull().default("0"),
   addedStock: numeric("added_stock", { precision: 10, scale: 2 }).notNull().default("0"),
-  expiryDate: text("expiry_date").notNull(),
+  supply: numeric("supply", { precision: 10, scale: 2 }).notNull().default("0"),
+  closingStock: numeric("closing_stock", { precision: 10, scale: 2 }).notNull().default("0"),
   date: text("date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

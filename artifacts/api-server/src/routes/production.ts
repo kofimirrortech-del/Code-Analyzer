@@ -11,6 +11,7 @@ const bodySchema = z.object({
   quantityProduced: z.coerce.number().min(0),
   unit: z.string().min(1).default("units"),
   baker: z.string().min(1),
+  note: z.string().default(""),
 });
 
 function today() {
@@ -24,6 +25,7 @@ function formatBatch(b: typeof productionBatchesTable.$inferSelect) {
     quantityProduced: parseFloat(b.quantityProduced ?? "0"),
     unit: b.unit ?? "units",
     baker: b.baker,
+    note: b.note ?? "",
     date: b.date,
     createdAt: b.createdAt.toISOString(),
   };
@@ -43,6 +45,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     quantityProduced: String(d.quantityProduced),
     unit: d.unit,
     baker: d.baker,
+    note: d.note,
     date: today(),
   }).returning();
   res.status(201).json(formatBatch(item));
@@ -58,6 +61,7 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
     quantityProduced: String(d.quantityProduced),
     unit: d.unit,
     baker: d.baker,
+    note: d.note,
   }).where(eq(productionBatchesTable.id, id)).returning();
   if (!item) { res.status(404).json({ error: "Not found" }); return; }
   res.json(formatBatch(item));

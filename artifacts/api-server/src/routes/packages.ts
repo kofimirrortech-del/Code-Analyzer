@@ -10,7 +10,8 @@ const bodySchema = z.object({
   packageType: z.string().min(1),
   stock: z.coerce.number().default(0),
   addedStock: z.coerce.number().default(0),
-  expiryDate: z.string().min(1),
+  supply: z.coerce.number().default(0),
+  closingStock: z.coerce.number().default(0),
 });
 
 function today() {
@@ -20,13 +21,16 @@ function today() {
 function formatPackage(p: typeof packagesTable.$inferSelect) {
   const stock = parseFloat(p.stock ?? "0");
   const added = parseFloat(p.addedStock ?? "0");
+  const supply = parseFloat(p.supply ?? "0");
+  const closing = parseFloat(p.closingStock ?? "0");
   return {
     id: p.id,
     packageType: p.packageType,
     stock,
     addedStock: added,
+    supply,
+    closingStock: closing,
     totalStock: stock + added,
-    expiryDate: p.expiryDate,
     date: p.date,
     createdAt: p.createdAt.toISOString(),
   };
@@ -45,7 +49,8 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     packageType: d.packageType,
     stock: String(d.stock),
     addedStock: String(d.addedStock),
-    expiryDate: d.expiryDate,
+    supply: String(d.supply),
+    closingStock: String(d.closingStock),
     date: today(),
   }).returning();
   res.status(201).json(formatPackage(item));
@@ -60,7 +65,8 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
     packageType: d.packageType,
     stock: String(d.stock),
     addedStock: String(d.addedStock),
-    expiryDate: d.expiryDate,
+    supply: String(d.supply),
+    closingStock: String(d.closingStock),
   }).where(eq(packagesTable.id, id)).returning();
   if (!item) { res.status(404).json({ error: "Not found" }); return; }
   res.json(formatPackage(item));
