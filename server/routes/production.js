@@ -18,8 +18,13 @@ function fmt(r) {
   };
 }
 
-router.get('/', requireAuth, async (_req, res) => {
-  const { rows } = await query('SELECT * FROM production_batches ORDER BY created_at DESC');
+router.get('/', requireAuth, async (req, res) => {
+  const { date } = req.query;
+  let sql = 'SELECT * FROM production_batches';
+  const params = [];
+  if (date) { sql += ' WHERE date = $1'; params.push(date); }
+  sql += ' ORDER BY created_at DESC';
+  const { rows } = await query(sql, params);
   res.json(rows.map(fmt));
 });
 

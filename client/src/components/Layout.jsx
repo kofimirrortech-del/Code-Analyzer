@@ -3,18 +3,19 @@ import { Link, useLocation } from 'wouter';
 import { useAuth } from '../hooks/useAuth.jsx';
 import {
   LayoutGrid, Package, Wheat, Factory, Archive, Truck,
-  History as HistoryIcon, Settings, LogOut, Menu, X, ChefHat
+  History as HistoryIcon, Settings, LogOut, Menu, X, ChefHat, ClipboardList
 } from 'lucide-react';
 
 const NAV = [
-  { path: '/',            label: 'Dashboard',   icon: LayoutGrid, roles: ['ADMIN','STORE','INGREDIENT','PRODUCTION','PACKAGE','DISPATCH'] },
-  { path: '/store',       label: 'Store',        icon: Package,    roles: ['ADMIN','STORE'] },
-  { path: '/ingredients', label: 'Ingredients',  icon: Wheat,      roles: ['ADMIN','INGREDIENT'] },
-  { path: '/production',  label: 'Production',   icon: Factory,    roles: ['ADMIN','PRODUCTION'] },
-  { path: '/packaging',   label: 'Packaging',    icon: Archive,    roles: ['ADMIN','PACKAGE'] },
-  { path: '/dispatch',    label: 'Dispatch',     icon: Truck,      roles: ['ADMIN','DISPATCH'] },
-  { path: '/history',     label: 'History',      icon: HistoryIcon,roles: ['ADMIN','STORE','INGREDIENT','PRODUCTION','PACKAGE','DISPATCH'] },
-  { path: '/settings',    label: 'Settings',     icon: Settings,   roles: ['ADMIN'] },
+  { path: '/',            label: 'Dashboard',     icon: LayoutGrid,   roles: ['ADMIN'] },
+  { path: '/store',       label: 'Store',          icon: Package,      roles: ['ADMIN', 'STORE'] },
+  { path: '/ingredients', label: 'Ingredients',    icon: Wheat,        roles: ['ADMIN', 'INGREDIENT'] },
+  { path: '/orders',      label: "Today's Order",  icon: ClipboardList,roles: ['ADMIN', 'STORE', 'INGREDIENT', 'PRODUCTION', 'PACKAGE', 'DISPATCH'] },
+  { path: '/production',  label: 'Production',     icon: Factory,      roles: ['ADMIN'] },
+  { path: '/packaging',   label: 'Packaging',      icon: Archive,      roles: ['ADMIN', 'PACKAGE'] },
+  { path: '/dispatch',    label: 'Dispatch',       icon: Truck,        roles: ['ADMIN', 'DISPATCH'] },
+  { path: '/history',     label: 'History',        icon: HistoryIcon,  roles: ['ADMIN'] },
+  { path: '/settings',    label: 'Settings',       icon: Settings,     roles: ['ADMIN'] },
 ];
 
 function Sidebar({ user, onClose }) {
@@ -86,13 +87,11 @@ export default function Layout({ children }) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a18' }}>
-      {/* Desktop sidebar */}
       <aside className="glass" style={{ width: 256, flexShrink: 0, display: 'none', flexDirection: 'column', borderTop: 'none', borderLeft: 'none', borderBottom: 'none', borderRadius: 0, minHeight: '100vh', position: 'sticky', top: 0 }}
         id="desktop-sidebar">
         <Sidebar user={user} onClose={() => {}} />
       </aside>
 
-      {/* Mobile topbar */}
       <div className="glass" style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 60, zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderRadius: 0 }}
         id="mobile-topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -104,7 +103,6 @@ export default function Layout({ children }) {
         </button>
       </div>
 
-      {/* Mobile drawer */}
       {mobileOpen && (
         <div className="overlay" style={{ justifyContent: 'flex-start', alignItems: 'stretch', padding: 0 }}
           onClick={() => setMobileOpen(false)}>
