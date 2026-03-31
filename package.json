@@ -1,16 +1,25 @@
 {
-  "name": "workspace",
-  "version": "0.0.0",
-  "license": "MIT",
+  "name": "deffizzy-erp",
+  "version": "1.0.0",
+  "description": "DEFFIZZY BAKE ERP - Bakery Management System",
+  "type": "module",
   "scripts": {
-    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
-    "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "build": "cd client && npm install && npm run build",
+    "start": "node server/index.js",
+    "dev:server": "node --watch server/index.js",
+    "dev": "concurrently \"npm run dev:server\" \"cd client && npm run dev\""
   },
-  "private": true,
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "googleapis": "^144.0.0",
+    "pg": "^8.13.3"
+  },
   "devDependencies": {
-    "typescript": "~5.9.2",
-    "prettier": "^3.8.1"
+    "concurrently": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

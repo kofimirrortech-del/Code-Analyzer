@@ -39,20 +39,20 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=25290 BASE_PATH=/ pnpm --filter @workspace/deffizzy-erp run dev"
-waitForPort = 25290
+args = "API_PORT=3000 PORT=5173 cd client && npm run dev"
+waitForPort = 5173
 
 [[workflows.workflow]]
 name = "API Server"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PORT=8080 pnpm --filter @workspace/api-server run dev"
-waitForPort = 8080
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "API_PORT=3000 PORT=3000 node server/index.js"
+waitForPort = 3000
 
 [agent]
 stack = "PNPM_WORKSPACE"

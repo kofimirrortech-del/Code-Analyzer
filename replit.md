@@ -1,120 +1,111 @@
-# Workspace
+# DEFFIZZY BAKE ERP
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+Bakery management ERP system. Single project deployable on Render (free tier).
 
 ## Stack
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **Backend**: Express.js (Node.js, plain JavaScript, ES modules)
+- **Frontend**: React 18 + Vite 5 + Tailwind CSS 4
+- **Database**: PostgreSQL (via `pg` library — no ORM)
+- **Auth**: Session-based (cookies, stored in `sessions` table)
+- **Routing**: Wouter (hash-based routing in frontend)
+- **Data Fetching**: TanStack React Query v5
+- **Google Drive**: googleapis for backup feature
 
-## Structure
+## Project Structure
 
-```text
-artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   ├── api-server/         # Express API server
-│   └── deffizzy-erp/       # DEFFIZZY BAKE ERP frontend (React + Vite)
-├── lib/                    # Shared libraries
-│   ├── api-spec/           # OpenAPI spec + Orval codegen config
-│   ├── api-client-react/   # Generated React Query hooks
-│   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+```
+/
+├── server/
+│   ├── index.js          - Express entry point (serves static + API)
+│   ├── db.js             - PostgreSQL pool + table migrations
+│   ├── middleware.js      - requireAuth session middleware
+│   └── routes/
+│       ├── auth.js        - Login, logout, /me
+│       ├── store.js       - Store inventory CRUD
+│       ├── ingredients.js - Ingredients CRUD
+│       ├── production.js  - Production batches CRUD
+│       ├── packages.js    - Packaging CRUD
+│       ├── dispatch.js    - Orders/dispatch CRUD
+│       ├── dashboard.js   - Dashboard stats
+│       ├── history.js     - Historical data by date
+│       └── gdrive.js      - Google Drive OAuth + backup
+├── client/
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── index.html
+│   └── src/
+│       ├── main.jsx       - React entry
+│       ├── App.jsx        - Router setup (hash routing)
+│       ├── index.css      - Global styles + Tailwind
+│       ├── api.js         - Fetch utility wrapper
+│       ├── components/
+│       │   └── Layout.jsx - Sidebar + mobile nav
+│       ├── hooks/
+│       │   └── useAuth.jsx
+│       └── pages/
+│           ├── Login.jsx
+│           ├── Dashboard.jsx
+│           ├── Store.jsx
+│           ├── Ingredients.jsx
+│           ├── Production.jsx
+│           ├── Packaging.jsx
+│           ├── Dispatch.jsx
+│           ├── History.jsx
+│           └── Settings.jsx  - Google Drive config
+├── package.json          - Server dependencies
+├── render.yaml           - Render deployment config
+└── .env.example          - Environment variable template
 ```
 
-## TypeScript & Composite Projects
+## Development on Replit
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
+Two workflows run simultaneously:
+- **API Server** — `PORT=3000 node server/index.js` (Express API on port 3000)
+- **Start application** — `PORT=5173 cd client && npm run dev` (Vite dev server on port 5173, proxies `/api` to port 3000)
 
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
+## Deploying to Render (Free Tier)
 
-## Root Scripts
+1. Push the project to a GitHub repo
+2. On Render, create a **Web Service** from the repo
+3. Set:
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `node server/index.js`
+4. Add environment variables (see `.env.example`):
+   - `DATABASE_URL` — PostgreSQL connection string (Neon.tech recommended)
+   - `SESSION_SECRET` — any long random string
+   - `APP_URL` — your Render app URL (e.g. `https://deffizzy-erp.onrender.com`)
+   - `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` — (optional, for Drive backup)
+5. Deploy!
 
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
+## Database
 
-## Packages
+Tables are auto-created on first server start (`server/db.js → initDb()`):
+- `sessions` — auth sessions
+- `store_items` — inventory
+- `ingredients` — daily ingredients
+- `production_batches` — production logs
+- `packages` — packaging stock
+- `orders` — dispatch orders
+- `settings` — app settings (Google tokens, etc.)
 
-### `artifacts/api-server` (`@workspace/api-server`)
+## User Roles
 
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
+| Username    | Password  | Role        |
+|-------------|-----------|-------------|
+| admin       | admin123  | ADMIN       |
+| store_user  | store789  | STORE       |
+| ing_user    | ing789    | INGREDIENT  |
+| prod_user   | prod789   | PRODUCTION  |
+| pkg_user    | pkg789    | PACKAGE     |
+| disp_user   | disp789   | DISPATCH    |
 
-- Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+## Google Drive Backup
 
-### `lib/db` (`@workspace/db`)
-
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
-
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
-
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
-
-### `lib/api-spec` (`@workspace/api-spec`)
-
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
-
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
-Run codegen: `pnpm --filter @workspace/api-spec run codegen`
-
-### `lib/api-zod` (`@workspace/api-zod`)
-
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
-
-### `lib/api-client-react` (`@workspace/api-client-react`)
-
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
-
-### `scripts` (`@workspace/scripts`)
-
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
-
-## DEFFIZZY BAKE ERP — Feature Notes
-
-### Authentication & Roles
-- Roles: `ADMIN`, `STORE`, `INGREDIENT`, `PRODUCTION`, `PACKAGE`, `DISPATCH`
-- Dashboard (`/`) is restricted to **ADMIN only** — other roles are redirected to their first permitted page
-- Auth endpoints: `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`
-- Session cookie-based auth with `requireAuth` middleware
-
-### Database Schema (`lib/db/src/schema/erp.ts`)
-- **store_items**: `itemName`, `quantity`, `addedStock`, `unit`, `supplier`, `date`
-  - `totalStock` is **computed** at API level: `quantity + addedStock`
-- **production_batches**: `product`, `quantityProduced`, `unit`, `baker`, `date`
-- **packages**: `packageType`, `stock`, `addedStock`, `expiryDate`, `date`
-  - `totalStock` is **computed** at API level: `stock + addedStock`
-- **orders** (Dispatch): `notes`, `item`, `quantity`, `unitCost`, `total`, `date`
-  - `total` is **auto-calculated** server-side: `quantity × unitCost`
-
-### Frontend Pages
-- **Store**: 9-column table — #, Item Name, Quantity, Added Stock, Total Stock, Unit, Supplier, Date, Actions
-- **Production**: 7-column table — Batch #, Product, Qty Produced, Unit, Baker, Date Logged, Actions
-- **Packaging**: 8-column table — #, Package Type, Stock, Added Stock, Total Stock, Expiry Date, Date Added, Actions
-- **Dispatch**: 8-column table — #, Notes, Item, Quantity, Unit Cost (₵), Total (₵), Date, Actions; live total preview in form; summary cards with grand total
+1. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `APP_URL` env vars
+2. Log in as admin → go to **Settings**
+3. Click **Connect Google Account**
+4. Authorize access
+5. Click **Backup Now** to save all data to Google Drive
