@@ -1,39 +1,41 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.js';
+import { useAuth } from '../hooks/useAuth.jsx';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Tag } from 'lucide-react';
 
+const today = () => new Date().toISOString().split('T')[0];
 const EMPTY = { product: '', quantityProduced: 0, unit: 'units', baker: '', note: '' };
 
 export default function Production() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
   const qc = useQueryClient();
   const [modal, setModal] = useState({ open: false, mode: 'create', data: EMPTY });
-  const { data = [], isLoading } = useQuery({
-    queryKey: ['production-all'],
-    queryFn: () => api.get('/production'),
-  });
+  const [newProduct, setNewProduct] = useState('');
 
-  const save = useMutation({
-    mutationFn: d => modal.mode === 'create'
-      ? api.post('/production', d)
-      : api.put(`/production/${modal.data.id}`, d),
-    onSuccess: () => {
-      qc.invalidateQueries(['production-all']);
-      qc.invalidateQueries(['production']);
-      setModal(m => ({ ...m, open: false }));
-      toast.success(modal.mode === 'create' ? 'Record added!' : 'Record updated!');
-    },
+  const { data: products = [] } = useQuery({ queryKey: ['production-products'], queryFn: () => api.get('/production/products') });
+  const { data = [], isLoading } = useQuery({ queryKey: ['production', today()], queryFn: () => api.get(`/production?date=${today()}`) });
+
+  const addProduct = useMutation({
+    mutationFn: name => api.post('/production/products', { name }),
+    onSuccess: () => { qc.invalidateQueries(['production-products']); setNewProduct(''); toast.success('Product added!'); },
     onError: e => toast.error(e.message),
   });
-
+  const deleteProduct = useMutation({
+    mutationFn: id => api.delete(`/production/products/${id}`),
+    onSuccess: () => { qc.invalidateQueries(['production-products']); toast.success('Product removed'); },
+    onError: e => toast.error(e.message),
+  });
+  const save = useMutation({
+    mutationFn: d => modal.mode === 'create' ? api.post('/production', d) : api.put(`/production/${modal.data.id}`, d),
+    onSuccess: () => { qc.invalidateQueries(['production']); qc.invalidateQueries(['production-products']); setModal(m => ({ ...m, open: false })); toast.success(modal.mode === 'create' ? 'Record added!' : 'Record updated!'); },
+    onError: e => toast.error(e.message),
+  });
   const del = useMutation({
     mutationFn: id => api.delete(`/production/${id}`),
-    onSuccess: () => {
-      qc.invalidateQueries(['production-all']);
-      qc.invalidateQueries(['production']);
-      toast.success('Record deleted');
-    },
+    onSuccess: () => { qc.invalidateQueries(['production']); toast.success('Record deleted'); },
     onError: e => toast.error(e.message),
   });
 
@@ -43,25 +45,39 @@ export default function Production() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Production</h1>
-        <button className="btn btn-primary" onClick={() => setModal({ open: true, mode: 'create', data: EMPTY })}>
-          <Plus size={16} />Add Record
-        </button>
+        {isAdmin && <button className="btn btn-primary" onClick={() => setModal({ open: true, mode: 'create', data: { ...EMPTY } })}><Plus size={16} />Add Record</button>}
       </div>
 
+      {isAdmin && (
+        <div className="card" style={{ marginBottom: '1rem', padding: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <Tag size={16} color="#3b82f6" />
+            <span style={{ fontWeight: 600, color: '#fff', fontSize: '0.875rem' }}>Persistent Product Names</span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            {products.map(p => (
+              <span key={p.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 9999, fontSize: '0.8rem', color: '#60a5fa' }}>
+                {p.name}
+                <button onClick={() => { if (confirm(`Remove "${p.name}"?`)) deleteProduct.mutate(p.id); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, lineHeight: 1, display: 'flex' }}><X size={12} /></button>
+              </span>
+            ))}
+            {products.length === 0 && <span style={{ color: '#4a5568', fontSize: '0.8rem' }}>No products yet</span>}
+          </div>
+          <form onSubmit={e => { e.preventDefault(); if (!newProduct.trim()) return; addProduct.mutate(newProduct.trim()); }} style={{ display: 'flex', gap: '0.5rem' }}>
+            <input className="input" value={newProduct} onChange={e => setNewProduct(e.target.value)} placeholder="Add new product name..." style={{ flex: 1 }} />
+            <button type="submit" className="btn btn-primary" disabled={addProduct.isPending}><Plus size={16} />Add</button>
+          </form>
+        </div>
+      )}
+
       <div className="card">
-        {isLoading ? (
-          <div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
-        ) : (
+        {isLoading ? <div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto' }} /></div> : (
           <div className="table-wrap">
             <table>
-              <thead>
-                <tr>
-                  {['#', 'Product', 'Unit', 'Qty Produced', 'Baker', 'Note', 'Date', 'Actions'].map(h => <th key={h}>{h}</th>)}
-                </tr>
-              </thead>
+              <thead><tr>{['#','Product','Unit','Qty Produced','Baker','Note','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
               <tbody>
                 {data.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No production records yet.</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No production records for today.</td></tr>
                 ) : data.map((item, i) => (
                   <tr key={item.id}>
                     <td style={{ color: '#4a5568' }}>{i + 1}</td>
@@ -73,14 +89,8 @@ export default function Production() {
                     <td style={{ color: '#64748b' }}>{item.date}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn btn-ghost" style={{ padding: '0.375rem 0.75rem' }}
-                          onClick={() => setModal({ open: true, mode: 'edit', data: { ...item } })}>
-                          <Pencil size={14} />
-                        </button>
-                        <button className="btn btn-danger" style={{ padding: '0.375rem 0.75rem' }}
-                          onClick={() => { if (confirm('Delete this record?')) del.mutate(item.id); }}>
-                          <Trash2 size={14} />
-                        </button>
+                        <button className="btn btn-ghost" style={{ padding: '0.375rem 0.75rem' }} onClick={() => setModal({ open: true, mode: 'edit', data: { ...item } })}><Pencil size={14} /></button>
+                        {isAdmin && <button className="btn btn-danger" style={{ padding: '0.375rem 0.75rem' }} onClick={() => { if (confirm('Delete?')) del.mutate(item.id); }}><Trash2 size={14} /></button>}
                       </div>
                     </td>
                   </tr>
@@ -95,23 +105,21 @@ export default function Production() {
         <div className="overlay" onClick={() => setModal(m => ({ ...m, open: false }))}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ fontWeight: 700, color: '#fff', fontSize: '1.25rem' }}>
-                {modal.mode === 'create' ? 'Add Production Record' : 'Edit Production Record'}
-              </h2>
+              <h2 style={{ fontWeight: 700, color: '#fff', fontSize: '1.25rem' }}>{modal.mode === 'create' ? 'Add Production Record' : 'Edit Record'}</h2>
               <button onClick={() => setModal(m => ({ ...m, open: false }))} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={20} /></button>
             </div>
-            <form onSubmit={e => {
-              e.preventDefault();
-              if (!modal.data.product || !modal.data.baker) { toast.error('Product and baker are required'); return; }
-              save.mutate(modal.data);
-            }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div><label className="label">Product *</label><input className="input" value={modal.data.product} onChange={e => set('product', e.target.value)} placeholder="e.g. White Bread" /></div>
+            <form onSubmit={e => { e.preventDefault(); if (!modal.data.product || !modal.data.baker) { toast.error('Product and baker are required'); return; } save.mutate(modal.data); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label className="label">Product *</label>
+                <input list="production-products-dl" className="input" value={modal.data.product} onChange={e => set('product', e.target.value)} placeholder="Select or type product..." />
+                <datalist id="production-products-dl">{products.map(p => <option key={p.id} value={p.name} />)}</datalist>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div><label className="label">Qty Produced *</label><input className="input" type="number" step="0.01" value={modal.data.quantityProduced} onChange={e => set('quantityProduced', e.target.value)} /></div>
                 <div><label className="label">Unit</label><input className="input" value={modal.data.unit} onChange={e => set('unit', e.target.value)} placeholder="loaves, kg..." /></div>
               </div>
               <div><label className="label">Baker *</label><input className="input" value={modal.data.baker} onChange={e => set('baker', e.target.value)} placeholder="Baker's name" /></div>
-              <div><label className="label">Note</label><textarea className="input" rows={3} value={modal.data.note} onChange={e => set('note', e.target.value)} placeholder="Optional notes..." style={{ resize: 'vertical' }} /></div>
+              <div><label className="label">Note</label><textarea className="input" rows={2} value={modal.data.note} onChange={e => set('note', e.target.value)} placeholder="Optional notes..." style={{ resize: 'vertical' }} /></div>
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setModal(m => ({ ...m, open: false }))}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={save.isPending}>{save.isPending ? 'Saving...' : 'Save'}</button>

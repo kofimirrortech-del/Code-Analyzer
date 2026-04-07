@@ -3,19 +3,21 @@ import { Link, useLocation } from 'wouter';
 import { useAuth } from '../hooks/useAuth.jsx';
 import {
   LayoutGrid, Package, Wheat, Factory, Archive, Truck,
-  History as HistoryIcon, Settings, LogOut, Menu, X, ChefHat, ClipboardList
+  History as HistoryIcon, Settings, LogOut, Menu, X, ChefHat,
+  ClipboardList, ClipboardCheck
 } from 'lucide-react';
 
 const NAV = [
-  { path: '/',            label: 'Dashboard',     icon: LayoutGrid,   roles: ['ADMIN'] },
-  { path: '/store',       label: 'Store',          icon: Package,      roles: ['ADMIN', 'STORE'] },
-  { path: '/ingredients', label: 'Ingredients',    icon: Wheat,        roles: ['ADMIN', 'INGREDIENT'] },
-  { path: '/orders',      label: "Today's Order",  icon: ClipboardList,roles: ['ADMIN', 'STORE', 'INGREDIENT', 'PRODUCTION', 'PACKAGE', 'DISPATCH'] },
-  { path: '/production',  label: 'Production',     icon: Factory,      roles: ['ADMIN'] },
-  { path: '/packaging',   label: 'Packaging',      icon: Archive,      roles: ['ADMIN', 'PACKAGE'] },
-  { path: '/dispatch',    label: 'Dispatch',       icon: Truck,        roles: ['ADMIN', 'DISPATCH'] },
-  { path: '/history',     label: 'History',        icon: HistoryIcon,  roles: ['ADMIN'] },
-  { path: '/settings',    label: 'Settings',       icon: Settings,     roles: ['ADMIN'] },
+  { path: '/',                  label: 'Dashboard',          icon: LayoutGrid,    roles: ['ADMIN'] },
+  { path: '/store',             label: 'Store',              icon: Package,       roles: ['ADMIN','STORE'] },
+  { path: '/ingredients',       label: 'Ingredients',        icon: Wheat,         roles: ['ADMIN','INGREDIENT'] },
+  { path: '/production',        label: 'Production',         icon: Factory,       roles: ['ADMIN','PRODUCTION'] },
+  { path: '/packaging',         label: 'Packaging',          icon: Archive,       roles: ['ADMIN','PACKAGE'] },
+  { path: '/dispatch',          label: 'Dispatch',           icon: Truck,         roles: ['ADMIN','DISPATCH'] },
+  { path: '/todays-order',      label: "Today's Order",      icon: ClipboardList, roles: ['ADMIN','PACKAGE','DISPATCH'] },
+  { path: '/todays-production', label: "Today's Production", icon: ClipboardCheck,roles: ['ADMIN','STORE','INGREDIENT','PRODUCTION'] },
+  { path: '/history',           label: 'History',            icon: HistoryIcon,   roles: ['ADMIN'] },
+  { path: '/settings',          label: 'Settings',           icon: Settings,      roles: ['ADMIN'] },
 ];
 
 function Sidebar({ user, onClose }) {
@@ -55,8 +57,7 @@ function Sidebar({ user, onClose }) {
               <div style={{
                 display: 'flex', alignItems: 'center', gap: '0.75rem',
                 padding: '0.75rem 1rem', borderRadius: 12, marginBottom: 4,
-                fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer',
-                transition: 'all 0.15s',
+                fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s',
                 background: active ? 'rgba(245,158,11,0.1)' : 'transparent',
                 color: active ? '#f59e0b' : '#94a3b8',
                 border: active ? '1px solid rgba(245,158,11,0.2)' : '1px solid transparent',
@@ -82,18 +83,15 @@ function Sidebar({ user, onClose }) {
 export default function Layout({ children }) {
   const { user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-
   if (!user) return null;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a18' }}>
-      <aside className="glass" style={{ width: 256, flexShrink: 0, display: 'none', flexDirection: 'column', borderTop: 'none', borderLeft: 'none', borderBottom: 'none', borderRadius: 0, minHeight: '100vh', position: 'sticky', top: 0 }}
-        id="desktop-sidebar">
+      <aside className="glass" style={{ width: 256, flexShrink: 0, display: 'none', flexDirection: 'column', borderTop: 'none', borderLeft: 'none', borderBottom: 'none', borderRadius: 0, minHeight: '100vh', position: 'sticky', top: 0 }} id="desktop-sidebar">
         <Sidebar user={user} onClose={() => {}} />
       </aside>
 
-      <div className="glass" style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 60, zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderRadius: 0 }}
-        id="mobile-topbar">
+      <div className="glass" style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 60, zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderRadius: 0 }} id="mobile-topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <ChefHat size={22} color="#f59e0b" />
           <span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#fff' }}>DEFFIZZY</span>
@@ -104,22 +102,16 @@ export default function Layout({ children }) {
       </div>
 
       {mobileOpen && (
-        <div className="overlay" style={{ justifyContent: 'flex-start', alignItems: 'stretch', padding: 0 }}
-          onClick={() => setMobileOpen(false)}>
-          <div className="glass" onClick={e => e.stopPropagation()}
-            style={{ width: 256, height: '100%', flexShrink: 0, overflowY: 'auto', borderTop: 'none', borderLeft: 'none', borderBottom: 'none', borderRadius: 0, position: 'relative' }}>
-            <button onClick={() => setMobileOpen(false)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}>
-              <X size={20} />
-            </button>
+        <div className="overlay" style={{ justifyContent: 'flex-start', alignItems: 'stretch', padding: 0 }} onClick={() => setMobileOpen(false)}>
+          <div className="glass" onClick={e => e.stopPropagation()} style={{ width: 256, height: '100%', flexShrink: 0, overflowY: 'auto', borderTop: 'none', borderLeft: 'none', borderBottom: 'none', borderRadius: 0, position: 'relative' }}>
+            <button onClick={() => setMobileOpen(false)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={20} /></button>
             <Sidebar user={user} onClose={() => setMobileOpen(false)} />
           </div>
         </div>
       )}
 
       <main style={{ flex: 1, padding: '1.5rem', paddingTop: 'calc(60px + 1.5rem)', overflowY: 'auto', maxWidth: '100%' }} id="main-content">
-        <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-          {children}
-        </div>
+        <div style={{ maxWidth: 1280, margin: '0 auto' }}>{children}</div>
       </main>
 
       <style>{`

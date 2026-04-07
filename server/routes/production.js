@@ -7,42 +7,56 @@ const today = () => new Date().toISOString().split('T')[0];
 
 function fmt(r) {
   return {
-    id: r.id,
-    product: r.product,
-    quantityProduced: parseFloat(r.quantity_produced ?? 0),
-    unit: r.unit ?? 'units',
-    baker: r.baker,
-    note: r.note ?? '',
-    date: r.date,
-    createdAt: r.created_at,
+    id: r.id, product: r.product, quantityProduced: parseFloat(r.quantity_produced ?? 0),
+    unit: r.unit ?? 'units', baker: r.baker, note: r.note ?? '', date: r.date, createdAt: r.created_at,
   };
 }
 
+/* ── Persistent product names ── */
+router.get('/products', requireAuth, async (_req, res) => {
+  const { rows } = await query('SELECT * FROM production_product_names ORDER BY name ASC');
+  res.json(rows.map(r => ({ id: r.id, name: r.name })));
+});
+
+router.post('/products', requireAuth, async (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  const { rows } = await query(
+    'INSERT INTO production_product_names (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET name=EXCLUDED.name RETURNING *',
+    [name.trim()]
+  );
+  res.status(201).json({ id: rows[0].id, name: rows[0].name });
+});
+
+router.delete('/products/:productId', requireAuth, async (req, res) => {
+  await query('DELETE FROM production_product_names WHERE id=$1', [req.params.productId]);
+  res.json({ success: true });
+});
+
+/* ── Daily records ── */
 router.get('/', requireAuth, async (req, res) => {
-  const { date } = req.query;
-  let sql = 'SELECT * FROM production_batches';
-  const params = [];
-  if (date) { sql += ' WHERE date = $1'; params.push(date); }
-  sql += ' ORDER BY created_at DESC';
-  const { rows } = await query(sql, params);
+  const date = req.query.date || today();
+  const { rows } = await query('SELECT * FROM production_batches WHERE date=$1 ORDER BY created_at DESC', [date]);
   res.json(rows.map(fmt));
 });
 
 router.post('/', requireAuth, async (req, res) => {
-  const { product, quantityProduced, unit = 'units', baker, note = '' } = req.body;
-  if (!product || quantityProduced == null || !baker) return res.status(400).json({ error: 'product, quantityProduced, baker are required' });
+  const { product, quantityProduced = 0, unit = 'units', baker, note = '' } = req.body;
+  if (!product || !baker) return res.status(400).json({ error: 'product and baker are required' });
+  await query('INSERT INTO production_product_names (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [product.trim()]);
   const { rows } = await query(
-    'INSERT INTO production_batches (product, quantity_produced, unit, baker, note, date) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+    'INSERT INTO production_batches (product,quantity_produced,unit,baker,note,date) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
     [product, quantityProduced, unit, baker, note, today()]
   );
   res.status(201).json(fmt(rows[0]));
 });
 
 router.put('/:id', requireAuth, async (req, res) => {
-  const { product, quantityProduced, unit = 'units', baker, note = '' } = req.body;
-  if (!product || quantityProduced == null || !baker) return res.status(400).json({ error: 'product, quantityProduced, baker are required' });
+  const { product, quantityProduced = 0, unit = 'units', baker, note = '' } = req.body;
+  if (!product || !baker) return res.status(400).json({ error: 'product and baker are required' });
+  await query('INSERT INTO production_product_names (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [product.trim()]);
   const { rows } = await query(
-    'UPDATE production_batches SET product=$1, quantity_produced=$2, unit=$3, baker=$4, note=$5 WHERE id=$6 RETURNING *',
+    'UPDATE production_batches SET product=$1,quantity_produced=$2,unit=$3,baker=$4,note=$5 WHERE id=$6 RETURNING *',
     [product, quantityProduced, unit, baker, note, req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Not found' });
@@ -50,7 +64,7 @@ router.put('/:id', requireAuth, async (req, res) => {
 });
 
 router.delete('/:id', requireAuth, async (req, res) => {
-  await query('DELETE FROM production_batches WHERE id = $1', [req.params.id]);
+  await query('DELETE FROM production_batches WHERE id=$1', [req.params.id]);
   res.json({ success: true });
 });
 

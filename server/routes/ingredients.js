@@ -4,32 +4,53 @@ import { requireAuth } from '../middleware.js';
 
 const router = Router();
 const today = () => new Date().toISOString().split('T')[0];
+const fmt = r => ({ id: r.id, name: r.name, stock: parseFloat(r.stock ?? 0), unit: r.unit, date: r.date, createdAt: r.created_at });
 
-function fmt(r) {
-  return { id: r.id, name: r.name, stock: parseFloat(r.stock ?? 0), unit: r.unit, date: r.date, createdAt: r.created_at };
-}
+/* ── Persistent names ── */
+router.get('/names', requireAuth, async (_req, res) => {
+  const { rows } = await query('SELECT * FROM ingredient_names ORDER BY name ASC');
+  res.json(rows.map(r => ({ id: r.id, name: r.name })));
+});
 
+router.post('/names', requireAuth, async (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  const { rows } = await query(
+    'INSERT INTO ingredient_names (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET name=EXCLUDED.name RETURNING *',
+    [name.trim()]
+  );
+  res.status(201).json({ id: rows[0].id, name: rows[0].name });
+});
+
+router.delete('/names/:nameId', requireAuth, async (req, res) => {
+  await query('DELETE FROM ingredient_names WHERE id=$1', [req.params.nameId]);
+  res.json({ success: true });
+});
+
+/* ── Daily records ── */
 router.get('/', requireAuth, async (req, res) => {
   const date = req.query.date || today();
-  const { rows } = await query('SELECT * FROM ingredients WHERE date = $1 ORDER BY created_at ASC', [date]);
+  const { rows } = await query('SELECT * FROM ingredients WHERE date=$1 ORDER BY created_at ASC', [date]);
   res.json(rows.map(fmt));
 });
 
 router.post('/', requireAuth, async (req, res) => {
-  const { name, stock, unit } = req.body;
-  if (!name || stock == null || !unit) return res.status(400).json({ error: 'name, stock, unit are required' });
+  const { name, stock = 0, unit = 'units' } = req.body;
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  await query('INSERT INTO ingredient_names (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [name.trim()]);
   const { rows } = await query(
-    'INSERT INTO ingredients (name, stock, unit, date) VALUES ($1,$2,$3,$4) RETURNING *',
+    'INSERT INTO ingredients (name,stock,unit,date) VALUES ($1,$2,$3,$4) RETURNING *',
     [name, stock, unit, today()]
   );
   res.status(201).json(fmt(rows[0]));
 });
 
 router.put('/:id', requireAuth, async (req, res) => {
-  const { name, stock, unit } = req.body;
-  if (!name || stock == null || !unit) return res.status(400).json({ error: 'name, stock, unit are required' });
+  const { name, stock = 0, unit = 'units' } = req.body;
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  await query('INSERT INTO ingredient_names (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [name.trim()]);
   const { rows } = await query(
-    'UPDATE ingredients SET name=$1, stock=$2, unit=$3 WHERE id=$4 RETURNING *',
+    'UPDATE ingredients SET name=$1,stock=$2,unit=$3 WHERE id=$4 RETURNING *',
     [name, stock, unit, req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Not found' });
@@ -37,7 +58,7 @@ router.put('/:id', requireAuth, async (req, res) => {
 });
 
 router.delete('/:id', requireAuth, async (req, res) => {
-  await query('DELETE FROM ingredients WHERE id = $1', [req.params.id]);
+  await query('DELETE FROM ingredients WHERE id=$1', [req.params.id]);
   res.json({ success: true });
 });
 

@@ -19,79 +19,78 @@ Bakery management ERP system. Single project deployable on Render (free tier).
 ```
 /
 ├── server/
-│   ├── index.js          - Express entry point (serves static + API)
-│   ├── db.js             - PostgreSQL pool + table migrations
-│   ├── middleware.js      - requireAuth session middleware
+│   ├── index.js                    - Express entry point
+│   ├── db.js                       - PostgreSQL pool + table migrations
+│   ├── middleware.js               - requireAuth (sets req.user)
 │   └── routes/
-│       ├── auth.js        - Login, logout, /me
-│       ├── store.js       - Store inventory CRUD
-│       ├── ingredients.js - Ingredients CRUD
-│       ├── production.js  - Production batches CRUD
-│       ├── packages.js    - Packaging CRUD
-│       ├── dispatch.js    - Orders/dispatch CRUD
-│       ├── dashboard.js   - Dashboard stats
-│       ├── history.js     - Historical data by date
-│       └── gdrive.js      - Google Drive OAuth + backup
-├── client/
-│   ├── package.json
-│   ├── vite.config.js
-│   ├── index.html
-│   └── src/
-│       ├── main.jsx       - React entry
-│       ├── App.jsx        - Router setup (hash routing)
-│       ├── index.css      - Global styles + Tailwind
-│       ├── api.js         - Fetch utility wrapper
-│       ├── components/
-│       │   └── Layout.jsx - Sidebar + mobile nav
-│       ├── hooks/
-│       │   └── useAuth.jsx
-│       └── pages/
-│           ├── Login.jsx
-│           ├── Dashboard.jsx
-│           ├── Store.jsx
-│           ├── Ingredients.jsx
-│           ├── Production.jsx
-│           ├── Packaging.jsx
-│           ├── Dispatch.jsx
-│           ├── History.jsx
-│           └── Settings.jsx  - Google Drive config
-├── package.json          - Server dependencies
-├── render.yaml           - Render deployment config
-└── .env.example          - Environment variable template
+│       ├── auth.js                 - Login, logout, /me
+│       ├── store.js                - Store CRUD + /names (persistent)
+│       ├── ingredients.js          - Ingredients CRUD + /names (persistent)
+│       ├── production.js           - Production CRUD + /products (persistent)
+│       ├── packages.js             - Packaging CRUD + /types (persistent)
+│       ├── dispatch.js             - Dispatch CRUD + /items (persistent)
+│       ├── todays-order-note.js    - Standalone Today's Order notes (admin write, all read)
+│       ├── todays-production-note.js - Standalone Today's Production notes (admin write, all read)
+│       ├── dashboard.js            - Dashboard stats
+│       ├── history.js              - Historical data by date
+│       └── gdrive.js               - Google Drive OAuth + backup
+├── client/src/
+│   ├── App.jsx                     - Routes + role-based redirects
+│   ├── components/Layout.jsx       - Sidebar + mobile nav (role-filtered)
+│   └── pages/
+│       ├── Login.jsx
+│       ├── Dashboard.jsx           - ADMIN only
+│       ├── Store.jsx               - ADMIN + STORE
+│       ├── Ingredients.jsx         - ADMIN + INGREDIENT
+│       ├── Production.jsx          - ADMIN + PRODUCTION (standalone, no links)
+│       ├── Packaging.jsx           - ADMIN + PACKAGE
+│       ├── Dispatch.jsx            - ADMIN + DISPATCH
+│       ├── TodaysOrder.jsx         - ADMIN (write) + PACKAGE/DISPATCH (read-only)
+│       ├── TodaysProduction.jsx    - ADMIN (write) + STORE/INGREDIENT/PRODUCTION (read-only)
+│       ├── History.jsx             - ADMIN only
+│       └── Settings.jsx            - ADMIN only, Google Drive config
 ```
 
-## Development on Replit
+## Role-Based Dashboard (Home page on login)
 
-Two workflows run simultaneously:
-- **API Server** — `PORT=3000 node server/index.js` (Express API on port 3000)
-- **Start application** — `PORT=5173 cd client && npm run dev` (Vite dev server on port 5173, proxies `/api` to port 3000)
+| Role        | Home page          | Can also access             |
+|-------------|--------------------|-----------------------------|
+| ADMIN       | Dashboard (/)      | Everything                  |
+| STORE       | Today's Production | Store                       |
+| INGREDIENT  | Today's Production | Ingredients                 |
+| PRODUCTION  | Today's Production | Production                  |
+| PACKAGE     | Today's Order      | Packaging                   |
+| DISPATCH    | Today's Order      | Dispatch                    |
 
-## Deploying to Render (Free Tier)
+Non-admin users can **edit** records in their section but **cannot add or delete**.
 
-1. Push the project to a GitHub repo
-2. On Render, create a **Web Service** from the repo
-3. Set:
-   - **Build Command**: `npm install && npm run build`
-   - **Start Command**: `node server/index.js`
-4. Add environment variables (see `.env.example`):
-   - `DATABASE_URL` — PostgreSQL connection string (Neon.tech recommended)
-   - `SESSION_SECRET` — any long random string
-   - `APP_URL` — your Render app URL (e.g. `https://deffizzy-erp.onrender.com`)
-   - `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` — (optional, for Drive backup)
-5. Deploy!
+## Persistent Names (survive day changes)
 
-## Database
+Each data section has a separate persistent names table:
+- `store_item_names` → Item Name column in Store
+- `ingredient_names` → Name column in Ingredients
+- `production_product_names` → Product column in Production
+- `package_type_names` → Package Type column in Packaging
+- `dispatch_item_names` → Item column in Dispatch
 
-Tables are auto-created on first server start (`server/db.js → initDb()`):
+Daily records are filtered by today's date. Names never wipe.
+
+## Standalone Note Sections (admin-managed)
+
+- **Today's Order** (`/todays-order`): `todays_order_notes` table — only Date (auto) + Note (unlimited)
+- **Today's Production** (`/todays-production`): `todays_production_notes` table — only Date (auto) + Note (unlimited)
+- These two are completely independent of each other and of all other sections.
+
+## Database Tables
+
+All auto-created on first server start:
 - `sessions` — auth sessions
-- `store_items` — inventory
-- `ingredients` — daily ingredients
-- `production_batches` — production logs
-- `packages` — packaging stock
-- `orders` — dispatch orders
-- `settings` — app settings (Google tokens, etc.)
+- `store_item_names`, `ingredient_names`, `production_product_names`, `package_type_names`, `dispatch_item_names` — persistent names
+- `store_items`, `ingredients`, `production_batches`, `packages`, `orders` — daily data (date-filtered)
+- `todays_order_notes`, `todays_production_notes` — standalone admin note sections
+- `settings` — Google Drive tokens
 
-## User Roles
+## Hardcoded Users
 
 | Username    | Password  | Role        |
 |-------------|-----------|-------------|
@@ -102,10 +101,15 @@ Tables are auto-created on first server start (`server/db.js → initDb()`):
 | pkg_user    | pkg789    | PACKAGE     |
 | disp_user   | disp789   | DISPATCH    |
 
-## Google Drive Backup
+## Development on Replit
 
-1. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `APP_URL` env vars
-2. Log in as admin → go to **Settings**
-3. Click **Connect Google Account**
-4. Authorize access
-5. Click **Backup Now** to save all data to Google Drive
+Two workflows run simultaneously:
+- **API Server** — `API_PORT=3000 PORT=3000 node server/index.js`
+- **Start application** — `API_PORT=3000 PORT=5173 cd client && npm run dev` (proxies `/api` → port 3000)
+
+## Deploying to Render (Free Tier)
+
+- **Build**: `npm install && npm run build`
+- **Start**: `node server/index.js`
+- Required env vars: `DATABASE_URL`, `SESSION_SECRET`, `APP_URL`, `NODE_ENV=production`
+- Optional (Google Drive): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`

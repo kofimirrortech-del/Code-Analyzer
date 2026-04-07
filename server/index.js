@@ -13,6 +13,8 @@ import dispatchRouter from './routes/dispatch.js';
 import dashboardRouter from './routes/dashboard.js';
 import historyRouter from './routes/history.js';
 import gdriveRouter from './routes/gdrive.js';
+import todaysOrderNoteRouter from './routes/todays-order-note.js';
+import todaysProductionNoteRouter from './routes/todays-production-note.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -33,24 +35,17 @@ app.use('/api/dispatch', dispatchRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/history', historyRouter);
 app.use('/api/gdrive', gdriveRouter);
+app.use('/api/todays-order-note', todaysOrderNoteRouter);
+app.use('/api/todays-production-note', todaysProductionNoteRouter);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
 if (isProd) {
   const distPath = path.join(__dirname, '../client/dist');
   app.use(express.static(distPath));
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
-  });
+  app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')));
 }
 
 initDb()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error('Failed to initialize database:', err);
-    process.exit(1);
-  });
+  .then(() => app.listen(PORT, () => console.log(`Server running on port ${PORT}`)))
+  .catch(err => { console.error('Failed to initialize database:', err); process.exit(1); });

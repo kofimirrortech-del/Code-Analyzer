@@ -24,88 +24,73 @@ export async function query(text, params) {
 }
 
 export async function initDb() {
-  await query(`
-    CREATE TABLE IF NOT EXISTS sessions (
-      id SERIAL PRIMARY KEY,
-      session_id TEXT UNIQUE NOT NULL,
-      username TEXT NOT NULL,
-      role TEXT NOT NULL,
-      created_at TIMESTAMP DEFAULT NOW()
-    )
-  `);
+  await query(`CREATE TABLE IF NOT EXISTS sessions (
+    id SERIAL PRIMARY KEY, session_id TEXT UNIQUE NOT NULL,
+    username TEXT NOT NULL, role TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW()
+  )`);
 
-  await query(`
-    CREATE TABLE IF NOT EXISTS store_items (
-      id SERIAL PRIMARY KEY,
-      item_name TEXT NOT NULL,
-      quantity NUMERIC(10,2) DEFAULT 0,
-      added_stock NUMERIC(10,2) DEFAULT 0,
-      closing_stock NUMERIC(10,2) DEFAULT 0,
-      low_stock_threshold NUMERIC(10,2) DEFAULT 0,
-      unit TEXT DEFAULT 'units',
-      supplier TEXT NOT NULL,
-      date TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
-    )
-  `);
+  /* ── Persistent name tables (never wiped) ── */
+  await query(`CREATE TABLE IF NOT EXISTS store_item_names (
+    id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, created_at TIMESTAMP DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS ingredient_names (
+    id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, created_at TIMESTAMP DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS production_product_names (
+    id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, created_at TIMESTAMP DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS package_type_names (
+    id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, created_at TIMESTAMP DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS dispatch_item_names (
+    id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, created_at TIMESTAMP DEFAULT NOW()
+  )`);
 
-  await query(`
-    CREATE TABLE IF NOT EXISTS ingredients (
-      id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL,
-      stock NUMERIC(10,2) NOT NULL DEFAULT 0,
-      unit TEXT NOT NULL DEFAULT 'units',
-      date TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
-    )
-  `);
+  /* ── Daily data tables (filtered by date) ── */
+  await query(`CREATE TABLE IF NOT EXISTS store_items (
+    id SERIAL PRIMARY KEY, item_name TEXT NOT NULL,
+    quantity NUMERIC(10,2) DEFAULT 0, added_stock NUMERIC(10,2) DEFAULT 0,
+    closing_stock NUMERIC(10,2) DEFAULT 0, low_stock_threshold NUMERIC(10,2) DEFAULT 0,
+    unit TEXT DEFAULT 'units', supplier TEXT DEFAULT '',
+    date TEXT, created_at TIMESTAMP DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS ingredients (
+    id SERIAL PRIMARY KEY, name TEXT NOT NULL,
+    stock NUMERIC(10,2) NOT NULL DEFAULT 0, unit TEXT NOT NULL DEFAULT 'units',
+    date TEXT, created_at TIMESTAMP DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS production_batches (
+    id SERIAL PRIMARY KEY, product TEXT NOT NULL,
+    quantity_produced NUMERIC(10,2) NOT NULL DEFAULT 0, unit TEXT DEFAULT 'units',
+    baker TEXT NOT NULL, note TEXT DEFAULT '',
+    date TEXT, created_at TIMESTAMP DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS packages (
+    id SERIAL PRIMARY KEY, package_type TEXT NOT NULL,
+    stock NUMERIC(10,2) DEFAULT 0, added_stock NUMERIC(10,2) DEFAULT 0,
+    supply NUMERIC(10,2) DEFAULT 0, closing_stock NUMERIC(10,2) DEFAULT 0,
+    date TEXT, created_at TIMESTAMP DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS orders (
+    id SERIAL PRIMARY KEY, notes TEXT DEFAULT '', item TEXT DEFAULT '',
+    quantity NUMERIC(10,2) DEFAULT 0, unit_cost NUMERIC(12,2) DEFAULT 0,
+    total NUMERIC(12,2) DEFAULT 0,
+    date TEXT, created_at TIMESTAMP DEFAULT NOW()
+  )`);
 
-  await query(`
-    CREATE TABLE IF NOT EXISTS production_batches (
-      id SERIAL PRIMARY KEY,
-      product TEXT NOT NULL,
-      quantity_produced NUMERIC(10,2) NOT NULL DEFAULT 0,
-      unit TEXT DEFAULT 'units',
-      baker TEXT NOT NULL,
-      note TEXT DEFAULT '',
-      date TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
-    )
-  `);
+  /* ── Standalone note tables (admin-managed, no links) ── */
+  await query(`CREATE TABLE IF NOT EXISTS todays_order_notes (
+    id SERIAL PRIMARY KEY, date TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '', created_at TIMESTAMP DEFAULT NOW()
+  )`);
+  await query(`CREATE TABLE IF NOT EXISTS todays_production_notes (
+    id SERIAL PRIMARY KEY, date TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '', created_at TIMESTAMP DEFAULT NOW()
+  )`);
 
-  await query(`
-    CREATE TABLE IF NOT EXISTS packages (
-      id SERIAL PRIMARY KEY,
-      package_type TEXT NOT NULL,
-      stock NUMERIC(10,2) DEFAULT 0,
-      added_stock NUMERIC(10,2) DEFAULT 0,
-      supply NUMERIC(10,2) DEFAULT 0,
-      closing_stock NUMERIC(10,2) DEFAULT 0,
-      date TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
-    )
-  `);
-
-  await query(`
-    CREATE TABLE IF NOT EXISTS orders (
-      id SERIAL PRIMARY KEY,
-      notes TEXT DEFAULT '',
-      item TEXT DEFAULT '',
-      quantity NUMERIC(10,2) DEFAULT 0,
-      unit_cost NUMERIC(12,2) DEFAULT 0,
-      total NUMERIC(12,2) DEFAULT 0,
-      date TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
-    )
-  `);
-
-  await query(`
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL,
-      updated_at TIMESTAMP DEFAULT NOW()
-    )
-  `);
+  await query(`CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TIMESTAMP DEFAULT NOW()
+  )`);
 
   console.log('Database initialized');
 }

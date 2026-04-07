@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, X, ClipboardList } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, ClipboardCheck } from 'lucide-react';
 
 const today = () => new Date().toISOString().split('T')[0];
 
@@ -13,23 +13,23 @@ function autoResize(el) {
   el.style.height = el.scrollHeight + 'px';
 }
 
-export default function TodaysOrder() {
+export default function TodaysProduction() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   const qc = useQueryClient();
   const [modal, setModal] = useState({ open: false, mode: 'create', note: '', editId: null });
 
   const { data = [], isLoading } = useQuery({
-    queryKey: ['todays-order-notes'],
-    queryFn: () => api.get('/todays-order-note'),
+    queryKey: ['todays-production-notes'],
+    queryFn: () => api.get('/todays-production-note'),
   });
 
   const save = useMutation({
     mutationFn: d => modal.mode === 'create'
-      ? api.post('/todays-order-note', d)
-      : api.put(`/todays-order-note/${modal.editId}`, d),
+      ? api.post('/todays-production-note', d)
+      : api.put(`/todays-production-note/${modal.editId}`, d),
     onSuccess: () => {
-      qc.invalidateQueries(['todays-order-notes']);
+      qc.invalidateQueries(['todays-production-notes']);
       setModal({ open: false, mode: 'create', note: '', editId: null });
       toast.success(modal.mode === 'create' ? 'Entry added!' : 'Entry updated!');
     },
@@ -37,8 +37,8 @@ export default function TodaysOrder() {
   });
 
   const del = useMutation({
-    mutationFn: id => api.delete(`/todays-order-note/${id}`),
-    onSuccess: () => { qc.invalidateQueries(['todays-order-notes']); toast.success('Entry deleted'); },
+    mutationFn: id => api.delete(`/todays-production-note/${id}`),
+    onSuccess: () => { qc.invalidateQueries(['todays-production-notes']); toast.success('Entry deleted'); },
     onError: e => toast.error(e.message),
   });
 
@@ -50,7 +50,7 @@ export default function TodaysOrder() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Today's Order</h1>
+          <h1 className="page-title">Today's Production</h1>
           <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.25rem' }}>{todayDate}</p>
         </div>
         {isAdmin && (
@@ -63,14 +63,14 @@ export default function TodaysOrder() {
       {/* Today's entries */}
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <ClipboardList size={16} color="#f59e0b" />
+          <ClipboardCheck size={16} color="#8b5cf6" />
           <span style={{ fontWeight: 600, color: '#fff', fontSize: '0.9rem' }}>Today — {todayDate}</span>
-          <span className="badge badge-amber" style={{ marginLeft: 'auto' }}>{todayEntries.length}</span>
+          <span className="badge" style={{ marginLeft: 'auto', background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)' }}>{todayEntries.length}</span>
         </div>
         {isLoading ? (
           <div style={{ padding: '2rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
         ) : todayEntries.length === 0 ? (
-          <div style={{ padding: '2.5rem', textAlign: 'center', color: '#4a5568' }}>No entries for today yet.</div>
+          <div style={{ padding: '2.5rem', textAlign: 'center', color: '#4a5568' }}>No production notes for today yet.</div>
         ) : (
           <div className="table-wrap">
             <table>
@@ -78,7 +78,7 @@ export default function TodaysOrder() {
               <tbody>
                 {todayEntries.map(item => (
                   <tr key={item.id}>
-                    <td style={{ color: '#f59e0b', fontWeight: 600, verticalAlign: 'top', paddingTop: '0.75rem' }}>{item.date}</td>
+                    <td style={{ color: '#a78bfa', fontWeight: 600, verticalAlign: 'top', paddingTop: '0.75rem' }}>{item.date}</td>
                     <td style={{ color: '#e2e8f0', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.7 }}>{item.note}</td>
                     {isAdmin && (
                       <td style={{ verticalAlign: 'top', paddingTop: '0.6rem' }}>
@@ -102,7 +102,6 @@ export default function TodaysOrder() {
         )}
       </div>
 
-      {/* Past entries (collapsed, no actions for non-admin) */}
       {pastEntries.length > 0 && (
         <div className="card">
           <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -143,7 +142,7 @@ export default function TodaysOrder() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h2 style={{ fontWeight: 700, color: '#fff', fontSize: '1.25rem' }}>
-                {modal.mode === 'create' ? "Add Today's Order Note" : 'Edit Note'}
+                {modal.mode === 'create' ? "Add Today's Production Note" : 'Edit Note'}
               </h2>
               <button onClick={() => setModal(m => ({ ...m, open: false }))} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={20} /></button>
             </div>
@@ -158,8 +157,8 @@ export default function TodaysOrder() {
                   className="input"
                   value={modal.note}
                   onChange={e => { setModal(m => ({ ...m, note: e.target.value })); autoResize(e.target); }}
-                  ref={el => { if (el) { autoResize(el); } }}
-                  placeholder="Type your order notes here — no character limit..."
+                  ref={el => { if (el) autoResize(el); }}
+                  placeholder="Type your production notes here — no character limit..."
                   style={{ resize: 'none', minHeight: 140, overflow: 'hidden', lineHeight: 1.7, width: '100%' }}
                 />
               </div>
