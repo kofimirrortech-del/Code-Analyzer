@@ -7,17 +7,17 @@ import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, X, Tag, ArrowRight } from 'lucide-react';
 
 const today = () => new Date().toISOString().split('T')[0];
-const EMPTY = { name: '', stock: 0, unit: 'kg', lowStockThreshold: 0 };
+const EMPTY = { name: '', openingStock: 0, addedStock: 0, lowStockThreshold: 0, unit: 'kg', supplier: '' };
 
 export default function Ingredients() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   const editable = canEdit(user, 'ingredients');
   const qc = useQueryClient();
-  const [modal, setModal] = useState({ open: false, mode: 'create', data: EMPTY });
+  const [modal, setModal] = useState({ open: false, mode: 'create', data: { ...EMPTY } });
   const [newName, setNewName] = useState('');
   const [supplyOpen, setSupplyOpen] = useState(false);
-  const [supplyForm, setSupplyForm] = useState({ itemName:'', quantity:'', unit:'units', note:'' });
+  const [supplyForm, setSupplyForm] = useState({ itemName: '', quantity: '', unit: 'units', note: '' });
 
   const { data: names = [] } = useQuery({ queryKey: ['ingredient-names'], queryFn: () => api.get('/ingredients/names') });
   const { data = [], isLoading } = useQuery({ queryKey: ['ingredients', today()], queryFn: () => api.get(`/ingredients?date=${today()}`) });
@@ -44,23 +44,36 @@ export default function Ingredients() {
   });
   const supply = useMutation({
     mutationFn: d => api.post('/transfers', d),
-    onSuccess: () => { qc.invalidateQueries(['ingredients']); setSupplyOpen(false); setSupplyForm({ itemName:'', quantity:'', unit:'units', note:'' }); toast.success('Supplied to Production!'); },
+    onSuccess: () => { qc.invalidateQueries(['ingredients']); setSupplyOpen(false); setSupplyForm({ itemName: '', quantity: '', unit: 'units', note: '' }); toast.success('Logged supply to Production!'); },
     onError: e => toast.error(e.message || 'Transfer failed'),
   });
 
   function set(k, v) { setModal(m => ({ ...m, data: { ...m.data, [k]: v } })); }
   const setSF = (k, v) => setSupplyForm(p => ({ ...p, [k]: v }));
+
+  async function onNameChange(name) {
+    set('name', name);
+    if (modal.mode === 'create' && name) {
+      try {
+        const res = await api.get(`/ingredients/last-closing?name=${encodeURIComponent(name)}`);
+        set('openingStock', res.closingStock ?? 0);
+      } catch { /* ignore */ }
+    }
+  }
+
   const handleSupply = () => {
     if (!supplyForm.itemName || !supplyForm.quantity) { toast.error('Item and quantity required'); return; }
-    supply.mutate({ fromDept:'ingredients', toDept:'production', itemName:supplyForm.itemName, quantity:parseFloat(supplyForm.quantity), unit:supplyForm.unit, note:supplyForm.note });
+    supply.mutate({ fromDept: 'ingredients', toDept: 'production', itemName: supplyForm.itemName, quantity: parseFloat(supplyForm.quantity), unit: supplyForm.unit, note: supplyForm.note, logOnly: true });
   };
+
+  const grandTotal = data.reduce((s, d) => s + d.closingStock, 0);
 
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">Ingredients</h1>
-        <div style={{ display:'flex', gap:'0.5rem' }}>
-          {editable && <button className="btn btn-secondary" onClick={() => setSupplyOpen(true)} style={{ gap:'0.4rem' }}><ArrowRight size={15}/>Supply to Production</button>}
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {editable && <button className="btn btn-secondary" onClick={() => setSupplyOpen(true)} style={{ gap: '0.4rem' }}><ArrowRight size={15} />Supply to Production</button>}
           {editable && <button className="btn btn-primary" onClick={() => setModal({ open: true, mode: 'create', data: { ...EMPTY } })}><Plus size={16} />Add Record</button>}
         </div>
       </div>
@@ -91,22 +104,25 @@ export default function Ingredients() {
         {isLoading ? <div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto' }} /></div> : (
           <div className="table-wrap">
             <table>
-              <thead><tr>{['#','Name','Stock','Unit','Low Threshold','Recorded By','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+              <thead><tr>{['#', 'Name', 'Opening', 'Added', 'Closing', 'Threshold', 'Unit', 'Supplier', 'Recorded By', 'Date', 'Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
               <tbody>
                 {data.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No ingredients for today.</td></tr>
+                  <tr><td colSpan={11} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No ingredients for today. {editable && 'Add one above.'}</td></tr>
                 ) : data.map((item, i) => (
                   <tr key={item.id}>
                     <td style={{ color: '#4a5568' }}>{i + 1}</td>
                     <td style={{ color: '#fff', fontWeight: 500 }}>{item.name}</td>
-                    <td><span className={item.lowStockThreshold > 0 && item.stock < item.lowStockThreshold ? 'badge badge-red' : 'badge badge-amber'}>{item.stock}</span></td>
-                    <td>{item.unit}</td>
+                    <td>{item.openingStock}</td>
+                    <td>{item.addedStock}</td>
+                    <td><span className={item.isLowStock ? 'badge badge-red' : 'badge badge-green'}>{item.closingStock}</span></td>
                     <td>{item.lowStockThreshold || '—'}</td>
+                    <td>{item.unit}</td>
+                    <td>{item.supplier || '—'}</td>
                     <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{item.recordedBy || '—'}</td>
                     <td style={{ color: '#64748b' }}>{item.date}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        {editable && <button className="btn btn-ghost" style={{ padding: '0.375rem 0.75rem' }} onClick={() => setModal({ open: true, mode: 'edit', data: { ...item } })}><Pencil size={14} /></button>}
+                        {editable && <button className="btn btn-ghost" style={{ padding: '0.375rem 0.75rem' }} onClick={() => setModal({ open: true, mode: 'edit', data: { ...item, openingStock: item.openingStock, addedStock: item.addedStock } })}><Pencil size={14} /></button>}
                         {isAdmin && <button className="btn btn-danger" style={{ padding: '0.375rem 0.75rem' }} onClick={() => { if (confirm('Delete?')) del.mutate(item.id); }}><Trash2 size={14} /></button>}
                       </div>
                     </td>
@@ -120,19 +136,22 @@ export default function Ingredients() {
 
       {supplyOpen && (
         <div className="overlay" onClick={() => setSupplyOpen(false)}>
-          <div className="modal-container" style={{ width:420 }} onClick={e => e.stopPropagation()}>
-            <h3 className="modal-title" style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}><ArrowRight size={18} color="#8b5cf6"/> Supply to Production</h3>
-            <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
-              <div><label className="label">Ingredient Name</label><input className="input" list="ing-supply-names" value={supplyForm.itemName} onChange={e=>setSF('itemName',e.target.value)} placeholder="Ingredient name"/><datalist id="ing-supply-names">{names.map(n=><option key={n.id} value={n.name}/>)}</datalist></div>
-              <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:'0.75rem' }}>
-                <div><label className="label">Quantity</label><input className="input" type="number" min="0" step="0.01" value={supplyForm.quantity} onChange={e=>setSF('quantity',e.target.value)} placeholder="0"/></div>
-                <div><label className="label">Unit</label><input className="input" value={supplyForm.unit} onChange={e=>setSF('unit',e.target.value)} placeholder="units"/></div>
+          <div className="modal-container" style={{ width: 420 }} onClick={e => e.stopPropagation()}>
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><ArrowRight size={18} color="#8b5cf6" /> Supply to Production</h3>
+            <div style={{ padding: '0.5rem 0.9rem 0.75rem', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: 8, fontSize: '0.8rem', color: '#a78bfa', marginBottom: '0.75rem' }}>
+              This logs the supply for record-keeping only — ingredient stock is managed through your daily entries.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div><label className="label">Ingredient Name</label><input className="input" list="ing-supply-names" value={supplyForm.itemName} onChange={e => setSF('itemName', e.target.value)} placeholder="Ingredient name" /><datalist id="ing-supply-names">{names.map(n => <option key={n.id} value={n.name} />)}</datalist></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem' }}>
+                <div><label className="label">Quantity</label><input className="input" type="number" min="0" step="0.01" value={supplyForm.quantity} onChange={e => setSF('quantity', e.target.value)} placeholder="0" /></div>
+                <div><label className="label">Unit</label><input className="input" value={supplyForm.unit} onChange={e => setSF('unit', e.target.value)} placeholder="units" /></div>
               </div>
-              <div><label className="label">Note (optional)</label><input className="input" value={supplyForm.note} onChange={e=>setSF('note',e.target.value)} placeholder="Optional note"/></div>
+              <div><label className="label">Note (optional)</label><input className="input" value={supplyForm.note} onChange={e => setSF('note', e.target.value)} placeholder="Optional note" /></div>
             </div>
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setSupplyOpen(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleSupply} disabled={supply.isPending}>{supply.isPending ? 'Transferring...' : 'Supply to Production'}</button>
+              <button className="btn btn-primary" onClick={handleSupply} disabled={supply.isPending}>{supply.isPending ? 'Logging...' : 'Log Supply'}</button>
             </div>
           </div>
         </div>
@@ -142,19 +161,27 @@ export default function Ingredients() {
         <div className="overlay" onClick={() => setModal(m => ({ ...m, open: false }))}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ fontWeight: 700, color: '#fff', fontSize: '1.25rem' }}>{modal.mode === 'create' ? 'Add Ingredient' : 'Edit Ingredient'}</h2>
+              <h2 style={{ fontWeight: 700, color: '#fff', fontSize: '1.25rem' }}>{modal.mode === 'create' ? 'Add Ingredient Record' : 'Edit Ingredient'}</h2>
               <button onClick={() => setModal(m => ({ ...m, open: false }))} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={20} /></button>
             </div>
             <form onSubmit={e => { e.preventDefault(); if (!modal.data.name) { toast.error('Name is required'); return; } save.mutate(modal.data); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label className="label">Name *</label>
-                <input list="ingredient-names-dl" className="input" value={modal.data.name} onChange={e => set('name', e.target.value)} placeholder="Select or type ingredient name..." />
+                <input list="ingredient-names-dl" className="input" value={modal.data.name} onChange={e => onNameChange(e.target.value)} placeholder="Select or type ingredient name..." />
                 <datalist id="ingredient-names-dl">{names.map(n => <option key={n.id} value={n.name} />)}</datalist>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div><label className="label">Stock</label><input className="input" type="number" step="0.01" value={modal.data.stock} onChange={e => set('stock', e.target.value)} /></div>
-                <div><label className="label">Unit *</label><input className="input" value={modal.data.unit} onChange={e => set('unit', e.target.value)} placeholder="kg, liters..." /></div>
-                <div style={{ gridColumn: '1 / -1' }}><label className="label">Low Stock Threshold (reorder point)</label><input className="input" type="number" step="0.01" value={modal.data.lowStockThreshold} onChange={e => set('lowStockThreshold', e.target.value)} placeholder="0 = disabled" /></div>
+                <div>
+                  <label className="label">Opening Stock {modal.mode === 'create' && <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 400 }}>(auto-filled)</span>}</label>
+                  <input className="input" type="number" step="0.01" value={modal.data.openingStock} onChange={e => set('openingStock', e.target.value)} style={modal.mode === 'create' ? { background: 'rgba(100,116,139,0.08)', color: '#94a3b8' } : {}} />
+                </div>
+                <div><label className="label">Added Stock (Received)</label><input className="input" type="number" step="0.01" value={modal.data.addedStock} onChange={e => set('addedStock', e.target.value)} /></div>
+                <div><label className="label">Low Stock Threshold</label><input className="input" type="number" step="0.01" value={modal.data.lowStockThreshold} onChange={e => set('lowStockThreshold', e.target.value)} placeholder="0 = disabled" /></div>
+                <div><label className="label">Unit</label><input className="input" value={modal.data.unit} onChange={e => set('unit', e.target.value)} placeholder="kg, liters..." /></div>
+                <div style={{ gridColumn: '1 / -1' }}><label className="label">Supplier</label><input className="input" value={modal.data.supplier} onChange={e => set('supplier', e.target.value)} placeholder="Supplier name" /></div>
+              </div>
+              <div style={{ padding: '0.6rem 0.9rem', background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.2)', borderRadius: 8, fontSize: '0.8rem', color: '#94a3b8' }}>
+                Opening stock is auto-filled from the last closing stock for that ingredient. Closing = Opening + Added.
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setModal(m => ({ ...m, open: false }))}>Cancel</button>

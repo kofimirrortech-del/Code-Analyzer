@@ -50,6 +50,16 @@ export default function Store() {
 
   function set(k, v) { setModal(m => ({ ...m, data: { ...m.data, [k]: v } })); }
   const setSF = (k, v) => setSupplyForm(p => ({ ...p, [k]: v }));
+
+  async function onItemNameChange(name) {
+    set('itemName', name);
+    if (modal.mode === 'create' && name) {
+      try {
+        const res = await api.get(`/store/last-closing?itemName=${encodeURIComponent(name)}`);
+        set('quantity', res.closingStock ?? 0);
+      } catch { /* ignore */ }
+    }
+  }
   const handleSupply = () => {
     if (!supplyForm.itemName || !supplyForm.quantity) { toast.error('Item and quantity required'); return; }
     supply.mutate({ fromDept:'store', toDept:'ingredients', itemName:supplyForm.itemName, quantity:parseFloat(supplyForm.quantity), unit:supplyForm.unit, note:supplyForm.note });
@@ -152,18 +162,21 @@ export default function Store() {
             <form onSubmit={e => { e.preventDefault(); if (!modal.data.itemName) { toast.error('Item name is required'); return; } save.mutate(modal.data); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label className="label">Item Name *</label>
-                <input list="store-names-dl" className="input" value={modal.data.itemName} onChange={e => set('itemName', e.target.value)} placeholder="Select or type item name..." />
+                <input list="store-names-dl" className="input" value={modal.data.itemName} onChange={e => onItemNameChange(e.target.value)} placeholder="Select or type item name..." />
                 <datalist id="store-names-dl">{names.map(n => <option key={n.id} value={n.name} />)}</datalist>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div><label className="label">Opening Stock</label><input className="input" type="number" step="0.01" value={modal.data.quantity} onChange={e => set('quantity', e.target.value)} /></div>
+                <div>
+                  <label className="label">Opening Stock {modal.mode === 'create' && <span style={{ fontSize:'0.7rem', color:'#64748b', fontWeight:400 }}>(auto-filled from last closing)</span>}</label>
+                  <input className="input" type="number" step="0.01" value={modal.data.quantity} onChange={e => set('quantity', e.target.value)} style={modal.mode === 'create' ? { background:'rgba(100,116,139,0.08)', color:'#94a3b8' } : {}} />
+                </div>
                 <div><label className="label">Added Stock (Received)</label><input className="input" type="number" step="0.01" value={modal.data.addedStock} onChange={e => set('addedStock', e.target.value)} /></div>
                 <div><label className="label">Low Stock Threshold</label><input className="input" type="number" step="0.01" value={modal.data.lowStockThreshold} onChange={e => set('lowStockThreshold', e.target.value)} /></div>
                 <div><label className="label">Unit</label><input className="input" value={modal.data.unit} onChange={e => set('unit', e.target.value)} placeholder="kg, units..." /></div>
                 <div style={{ gridColumn: '1 / -1' }}><label className="label">Supplier</label><input className="input" value={modal.data.supplier} onChange={e => set('supplier', e.target.value)} placeholder="Supplier name" /></div>
               </div>
               <div style={{ padding: '0.6rem 0.9rem', background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.2)', borderRadius: 8, fontSize: '0.8rem', color: '#94a3b8' }}>
-                Closing stock is auto-calculated: Opening + Added Stock. Deductions happen automatically when you supply to Ingredients.
+                Opening stock is auto-filled from the last closing stock for that item. Closing = Opening + Added. Deductions happen automatically when you supply to Ingredients.
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setModal(m => ({ ...m, open: false }))}>Cancel</button>

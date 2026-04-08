@@ -96,6 +96,23 @@ export async function initDb() {
   await query(`ALTER TABLE packages ADD COLUMN IF NOT EXISTS low_stock_threshold NUMERIC(10,2) DEFAULT 0`);
   await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS recorded_by TEXT DEFAULT ''`);
 
+  /* ── Ingredients: add opening/added/closing stock columns ── */
+  await query(`ALTER TABLE ingredients ADD COLUMN IF NOT EXISTS opening_stock NUMERIC(10,2) DEFAULT 0`);
+  await query(`ALTER TABLE ingredients ADD COLUMN IF NOT EXISTS added_stock NUMERIC(10,2) DEFAULT 0`);
+  await query(`ALTER TABLE ingredients ADD COLUMN IF NOT EXISTS closing_stock NUMERIC(10,2) DEFAULT 0`);
+  await query(`ALTER TABLE ingredients ADD COLUMN IF NOT EXISTS supplier TEXT DEFAULT ''`);
+
+  /* ── Bakery: add note column ── */
+  await query(`ALTER TABLE bakery_items ADD COLUMN IF NOT EXISTS note TEXT DEFAULT ''`);
+
+  /* ── Dispatch (orders): add stock tracking columns ── */
+  await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS opening_stock NUMERIC(10,2) DEFAULT 0`);
+  await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS added_stock NUMERIC(10,2) DEFAULT 0`);
+  await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS closing_stock NUMERIC(10,2) DEFAULT 0`);
+  await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS low_stock_threshold NUMERIC(10,2) DEFAULT 0`);
+  await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS unit TEXT DEFAULT 'units'`);
+  await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS supplier TEXT DEFAULT ''`);
+
   /* ── Inter-dept supply transfers ── */
   await query(`CREATE TABLE IF NOT EXISTS stock_transfers (
     id SERIAL PRIMARY KEY, from_dept TEXT NOT NULL, to_dept TEXT NOT NULL,

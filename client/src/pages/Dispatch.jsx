@@ -7,14 +7,14 @@ import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, X, Tag, TrendingUp } from 'lucide-react';
 
 const today = () => new Date().toISOString().split('T')[0];
-const EMPTY = { notes: '', item: '', quantity: 0, unitCost: 0 };
+const EMPTY = { notes: '', item: '', quantity: 0, unitCost: 0, openingStock: 0, addedStock: 0, lowStockThreshold: 0, unit: 'units', supplier: '' };
 
 export default function Dispatch() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   const editable = canEdit(user, 'dispatch');
   const qc = useQueryClient();
-  const [modal, setModal] = useState({ open: false, mode: 'create', data: EMPTY });
+  const [modal, setModal] = useState({ open: false, mode: 'create', data: { ...EMPTY } });
   const [newItem, setNewItem] = useState('');
 
   const { data: items = [] } = useQuery({ queryKey: ['dispatch-items'], queryFn: () => api.get('/dispatch/items') });
@@ -43,8 +43,19 @@ export default function Dispatch() {
 
   function set(k, v) { setModal(m => ({ ...m, data: { ...m.data, [k]: v } })); }
 
+  async function onItemChange(name) {
+    set('item', name);
+    if (modal.mode === 'create' && name) {
+      try {
+        const res = await api.get(`/dispatch/last-closing?itemName=${encodeURIComponent(name)}`);
+        set('openingStock', res.closingStock ?? 0);
+      } catch { /* ignore */ }
+    }
+  }
+
   const grandTotal = data.reduce((s, o) => s + o.total, 0);
   const liveTotal = (parseFloat(modal.data.quantity) || 0) * (parseFloat(modal.data.unitCost) || 0);
+  const liveClosing = (parseFloat(modal.data.openingStock) || 0) + (parseFloat(modal.data.addedStock) || 0) - (parseFloat(modal.data.quantity) || 0);
 
   return (
     <div>
@@ -93,18 +104,24 @@ export default function Dispatch() {
         {isLoading ? <div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto' }} /></div> : (
           <div className="table-wrap">
             <table>
-              <thead><tr>{['#','Notes','Item','Quantity','Unit Cost (₵)','Total (₵)','Recorded By','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+              <thead><tr>{['#', 'Item', 'Opening', 'Added', 'Dispatched', 'Closing', 'Threshold', 'Unit Cost (₵)', 'Total (₵)', 'Unit', 'Supplier', 'Notes', 'Recorded By', 'Date', 'Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
               <tbody>
                 {data.length === 0 ? (
-                  <tr><td colSpan={9} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No orders for today.</td></tr>
+                  <tr><td colSpan={15} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No orders for today.</td></tr>
                 ) : data.map((o, i) => (
                   <tr key={o.id}>
                     <td style={{ color: '#4a5568' }}>{i + 1}</td>
-                    <td style={{ color: '#94a3b8', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.notes || '—'}</td>
                     <td style={{ color: '#fff', fontWeight: 500 }}>{o.item}</td>
+                    <td>{o.openingStock}</td>
+                    <td>{o.addedStock}</td>
                     <td>{o.quantity}</td>
+                    <td><span className={o.isLowStock ? 'badge badge-red' : 'badge badge-green'}>{o.closingStock}</span></td>
+                    <td style={{ color: '#64748b' }}>{o.lowStockThreshold || '—'}</td>
                     <td>{o.unitCost.toFixed(2)}</td>
                     <td><span className="badge badge-green">₵{o.total.toFixed(2)}</span></td>
+                    <td style={{ color: '#64748b' }}>{o.unit}</td>
+                    <td style={{ color: '#64748b' }}>{o.supplier || '—'}</td>
+                    <td style={{ color: '#94a3b8', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.notes || '—'}</td>
                     <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{o.recordedBy || '—'}</td>
                     <td style={{ color: '#64748b' }}>{o.date}</td>
                     <td>
@@ -125,22 +142,36 @@ export default function Dispatch() {
         <div className="overlay" onClick={() => setModal(m => ({ ...m, open: false }))}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ fontWeight: 700, color: '#fff', fontSize: '1.25rem' }}>{modal.mode === 'create' ? 'Add Order' : 'Edit Order'}</h2>
+              <h2 style={{ fontWeight: 700, color: '#fff', fontSize: '1.25rem' }}>{modal.mode === 'create' ? 'Add Dispatch Order' : 'Edit Order'}</h2>
               <button onClick={() => setModal(m => ({ ...m, open: false }))} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={20} /></button>
             </div>
             <form onSubmit={e => { e.preventDefault(); if (!modal.data.item) { toast.error('Item is required'); return; } save.mutate(modal.data); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label className="label">Item *</label>
-                <input list="dispatch-items-dl" className="input" value={modal.data.item} onChange={e => set('item', e.target.value)} placeholder="Select or type item..." />
+                <input list="dispatch-items-dl" className="input" value={modal.data.item} onChange={e => onItemChange(e.target.value)} placeholder="Select or type item..." />
                 <datalist id="dispatch-items-dl">{items.map(it => <option key={it.id} value={it.name} />)}</datalist>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div><label className="label">Quantity</label><input className="input" type="number" step="0.01" value={modal.data.quantity} onChange={e => set('quantity', e.target.value)} /></div>
+                <div>
+                  <label className="label">Opening Stock {modal.mode === 'create' && <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 400 }}>(auto-filled)</span>}</label>
+                  <input className="input" type="number" step="0.01" value={modal.data.openingStock} onChange={e => set('openingStock', e.target.value)} style={modal.mode === 'create' ? { background: 'rgba(100,116,139,0.08)', color: '#94a3b8' } : {}} />
+                </div>
+                <div><label className="label">Added Stock (Received)</label><input className="input" type="number" step="0.01" value={modal.data.addedStock} onChange={e => set('addedStock', e.target.value)} /></div>
+                <div><label className="label">Qty Dispatched</label><input className="input" type="number" step="0.01" value={modal.data.quantity} onChange={e => set('quantity', e.target.value)} /></div>
                 <div><label className="label">Unit Cost (₵)</label><input className="input" type="number" step="0.01" value={modal.data.unitCost} onChange={e => set('unitCost', e.target.value)} /></div>
+                <div><label className="label">Low Stock Threshold</label><input className="input" type="number" step="0.01" value={modal.data.lowStockThreshold} onChange={e => set('lowStockThreshold', e.target.value)} placeholder="0 = disabled" /></div>
+                <div><label className="label">Unit</label><input className="input" value={modal.data.unit} onChange={e => set('unit', e.target.value)} placeholder="units, boxes..." /></div>
+                <div style={{ gridColumn: '1 / -1' }}><label className="label">Supplier / Customer</label><input className="input" value={modal.data.supplier} onChange={e => set('supplier', e.target.value)} placeholder="Supplier or customer name" /></div>
               </div>
-              <div style={{ padding: '0.75rem 1rem', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Total</span>
-                <span style={{ fontWeight: 700, color: '#4ade80', fontSize: '1.25rem' }}>₵{liveTotal.toFixed(2)}</span>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', padding: '0.75rem 1rem', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8 }}>
+                <div>
+                  <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Total Sale</span>
+                  <div style={{ fontWeight: 700, color: '#4ade80', fontSize: '1.1rem' }}>₵{liveTotal.toFixed(2)}</div>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Closing Stock</span>
+                  <div style={{ fontWeight: 700, color: liveClosing < 0 ? '#f87171' : '#fff', fontSize: '1.1rem' }}>{liveClosing.toFixed(2)}</div>
+                </div>
               </div>
               <div><label className="label">Notes</label><input className="input" value={modal.data.notes} onChange={e => set('notes', e.target.value)} placeholder="Optional notes..." /></div>
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>

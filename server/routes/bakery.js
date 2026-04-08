@@ -7,6 +7,7 @@ const today = () => new Date().toISOString().split('T')[0];
 const fmt = r => ({
   id: r.id, itemName: r.item_name, quantity: parseFloat(r.quantity ?? 0),
   unit: r.unit ?? 'units', lowStockThreshold: parseFloat(r.low_stock_threshold ?? 0),
+  note: r.note ?? '',
   recordedBy: r.recorded_by ?? '', date: r.date, createdAt: r.created_at,
 });
 
@@ -33,22 +34,22 @@ router.get('/', requireAuth, async (req, res) => {
   res.json(rows.map(fmt));
 });
 router.post('/', requireAuth, async (req, res) => {
-  const { itemName, quantity = 0, unit = 'units', lowStockThreshold = 0 } = req.body;
+  const { itemName, quantity = 0, unit = 'units', lowStockThreshold = 0, note = '' } = req.body;
   if (!itemName) return res.status(400).json({ error: 'itemName required' });
   await query('INSERT INTO bakery_item_names (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [itemName.trim()]);
   const { rows } = await query(
-    'INSERT INTO bakery_items (item_name,quantity,unit,low_stock_threshold,recorded_by,date) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-    [itemName, quantity, unit, lowStockThreshold, req.user.username, today()]
+    'INSERT INTO bakery_items (item_name,quantity,unit,low_stock_threshold,note,recorded_by,date) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+    [itemName, quantity, unit, lowStockThreshold, note, req.user.username, today()]
   );
   res.status(201).json(fmt(rows[0]));
 });
 router.put('/:id', requireAuth, async (req, res) => {
-  const { itemName, quantity = 0, unit = 'units', lowStockThreshold = 0 } = req.body;
+  const { itemName, quantity = 0, unit = 'units', lowStockThreshold = 0, note = '' } = req.body;
   if (!itemName) return res.status(400).json({ error: 'itemName required' });
   await query('INSERT INTO bakery_item_names (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [itemName.trim()]);
   const { rows } = await query(
-    'UPDATE bakery_items SET item_name=$1,quantity=$2,unit=$3,low_stock_threshold=$4 WHERE id=$5 RETURNING *',
-    [itemName, quantity, unit, lowStockThreshold, req.params.id]
+    'UPDATE bakery_items SET item_name=$1,quantity=$2,unit=$3,low_stock_threshold=$4,note=$5 WHERE id=$6 RETURNING *',
+    [itemName, quantity, unit, lowStockThreshold, note, req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Not found' });
   res.json(fmt(rows[0]));

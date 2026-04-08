@@ -40,6 +40,17 @@ router.delete('/names/:nameId', requireAuth, async (req, res) => {
   res.json({ success: true });
 });
 
+/* ── Last closing stock for a named item ── */
+router.get('/last-closing', requireAuth, async (req, res) => {
+  const { itemName } = req.query;
+  if (!itemName) return res.json({ closingStock: 0 });
+  const { rows } = await query(
+    `SELECT closing_stock FROM store_items WHERE item_name=$1 ORDER BY date DESC, id DESC LIMIT 1`,
+    [itemName]
+  );
+  res.json({ closingStock: rows[0] ? parseFloat(rows[0].closing_stock) : 0 });
+});
+
 /* ── Daily records ── */
 router.get('/', requireAuth, async (req, res) => {
   const date = req.query.date || today();

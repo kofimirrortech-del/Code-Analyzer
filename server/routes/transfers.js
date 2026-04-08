@@ -38,7 +38,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 router.post('/', requireAuth, async (req, res) => {
-  const { fromDept, toDept, itemName, quantity, unit = 'units', note = '' } = req.body;
+  const { fromDept, toDept, itemName, quantity, unit = 'units', note = '', logOnly = false } = req.body;
   const qty = parseFloat(quantity);
   if (!fromDept || !toDept || !itemName || !qty || qty <= 0) {
     return res.status(400).json({ error: 'fromDept, toDept, itemName, quantity (>0) required' });
@@ -47,6 +47,15 @@ router.post('/', requireAuth, async (req, res) => {
     return res.status(400).json({ error: `Invalid supply chain: ${fromDept} → ${toDept}` });
   }
   const t = today();
+
+  /* ── logOnly: just record the transfer, no stock changes ── */
+  if (logOnly) {
+    const { rows: tf } = await query(
+      'INSERT INTO stock_transfers (from_dept,to_dept,item_name,quantity,unit,note,transferred_by,date) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
+      [fromDept, toDept, itemName, qty, unit, note, req.user.username, t]
+    );
+    return res.status(201).json({ id: tf[0].id, fromDept, toDept, itemName, quantity: qty, unit, note, transferredBy: req.user.username, date: t });
+  }
 
   /* ── Deduct from source ── */
   if (fromDept === 'store') {

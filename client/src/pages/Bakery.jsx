@@ -47,18 +47,18 @@ export default function Bakery() {
   const { data: names = [] } = useQuery({ queryKey:['bakery-names'], queryFn:()=>api.get('/bakery/names') });
 
   const [addName, setAddName] = useState(''); const [editId, setEditId] = useState(null); const [editRow, setEditRow] = useState({});
-  const [showAdd, setShowAdd] = useState(false); const [newRow, setNewRow] = useState({ itemName:'', quantity:'', unit:'units', lowStockThreshold:'0' });
+  const [showAdd, setShowAdd] = useState(false); const [newRow, setNewRow] = useState({ itemName:'', quantity:'', unit:'units', lowStockThreshold:'0', note:'' });
   const [supplyDialog, setSupplyDialog] = useState(false);
 
   const createNameMut = useMutation({ mutationFn: d=>api.post('/bakery/names',d), onSuccess:()=>qc.invalidateQueries(['bakery-names']) });
   const deleteNameMut = useMutation({ mutationFn: id=>api.delete(`/bakery/names/${id}`), onSuccess:()=>qc.invalidateQueries(['bakery-names']) });
-  const createMut = useMutation({ mutationFn:d=>api.post('/bakery',d), onSuccess:()=>{ qc.invalidateQueries(['bakery',date]); setShowAdd(false); setNewRow({itemName:'',quantity:'',unit:'units',lowStockThreshold:'0'}); } });
+  const createMut = useMutation({ mutationFn:d=>api.post('/bakery',d), onSuccess:()=>{ qc.invalidateQueries(['bakery',date]); setShowAdd(false); setNewRow({itemName:'',quantity:'',unit:'units',lowStockThreshold:'0',note:''}); } });
   const updateMut = useMutation({ mutationFn:({id,...d})=>api.put(`/bakery/${id}`,d), onSuccess:()=>{ qc.invalidateQueries(['bakery',date]); setEditId(null); } });
   const deleteMut = useMutation({ mutationFn:id=>api.delete(`/bakery/${id}`), onSuccess:()=>qc.invalidateQueries(['bakery',date]) });
   const transferMut = useMutation({ mutationFn:d=>api.post('/transfers',d), onSuccess:()=>{ qc.invalidateQueries(['bakery',date]); setSupplyDialog(false); } });
 
   const handleAddName = () => { if(addName.trim()) { createNameMut.mutate({name:addName.trim()}); setAddName(''); } };
-  const startEdit = (r) => { setEditId(r.id); setEditRow({itemName:r.itemName, quantity:r.quantity, unit:r.unit, lowStockThreshold:r.lowStockThreshold}); };
+  const startEdit = (r) => { setEditId(r.id); setEditRow({itemName:r.itemName, quantity:r.quantity, unit:r.unit, lowStockThreshold:r.lowStockThreshold, note:r.note||''}); };
   const saveEdit = () => updateMut.mutate({ id:editId, ...editRow });
   const handleSupply = async (form) => {
     if(!form.itemName||!form.quantity) return alert('Item and quantity required');
@@ -109,6 +109,7 @@ export default function Bakery() {
             <div><label className="label">Quantity</label><input className="input" type="number" min="0" step="0.01" value={newRow.quantity} onChange={e=>setNewRow(p=>({...p,quantity:e.target.value}))} placeholder="0"/></div>
             <div><label className="label">Unit</label><input className="input" value={newRow.unit} onChange={e=>setNewRow(p=>({...p,unit:e.target.value}))} placeholder="units"/></div>
             <div><label className="label">Reorder Point</label><input className="input" type="number" min="0" step="0.01" value={newRow.lowStockThreshold} onChange={e=>setNewRow(p=>({...p,lowStockThreshold:e.target.value}))} placeholder="0"/></div>
+            <div><label className="label">Note</label><input className="input" value={newRow.note} onChange={e=>setNewRow(p=>({...p,note:e.target.value}))} placeholder="Optional note"/></div>
             <div style={{ display:'flex', gap:'0.5rem' }}>
               <button className="btn btn-primary" onClick={()=>createMut.mutate(newRow)}><Save size={14}/>Save</button>
               <button className="btn btn-secondary" onClick={()=>setShowAdd(false)}><X size={14}/></button>
@@ -117,15 +118,16 @@ export default function Bakery() {
         )}
         <div className="table-container">
           <table className="table">
-            <thead><tr><th>Item Name</th><th>Quantity</th><th>Unit</th><th>Reorder Point</th><th>Recorded By</th>{editable&&<th style={{textAlign:'right'}}>Actions</th>}</tr></thead>
+            <thead><tr><th>Item Name</th><th>Quantity</th><th>Unit</th><th>Reorder Point</th><th>Note</th><th>Recorded By</th>{editable&&<th style={{textAlign:'right'}}>Actions</th>}</tr></thead>
             <tbody>
-              {!items.length && <tr><td colSpan={editable?6:5} style={{textAlign:'center',color:'#4a5568',padding:'2rem'}}>No bakery items recorded today</td></tr>}
+              {!items.length && <tr><td colSpan={editable?7:6} style={{textAlign:'center',color:'#4a5568',padding:'2rem'}}>No bakery items recorded today</td></tr>}
               {items.map(r => editId===r.id ? (
                 <tr key={r.id}>
                   <td><input className="input" list="bk-names-edit" value={editRow.itemName} onChange={e=>setEditRow(p=>({...p,itemName:e.target.value}))}/><datalist id="bk-names-edit">{names.map(n=><option key={n.id} value={n.name}/>)}</datalist></td>
                   <td><input className="input" type="number" min="0" step="0.01" value={editRow.quantity} onChange={e=>setEditRow(p=>({...p,quantity:e.target.value}))}/></td>
                   <td><input className="input" value={editRow.unit} onChange={e=>setEditRow(p=>({...p,unit:e.target.value}))}/></td>
                   <td><input className="input" type="number" min="0" step="0.01" value={editRow.lowStockThreshold} onChange={e=>setEditRow(p=>({...p,lowStockThreshold:e.target.value}))}/></td>
+                  <td><input className="input" value={editRow.note||''} onChange={e=>setEditRow(p=>({...p,note:e.target.value}))} placeholder="Note"/></td>
                   <td><div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end'}}><button className="btn btn-primary" style={{padding:'0.35rem 0.6rem'}} onClick={saveEdit}><Save size={13}/></button><button className="btn btn-secondary" style={{padding:'0.35rem 0.6rem'}} onClick={()=>setEditId(null)}><X size={13}/></button></div></td>
                 </tr>
               ) : (
@@ -134,6 +136,7 @@ export default function Bakery() {
                   <td><span style={{fontWeight:700,color: r.lowStockThreshold>0&&r.quantity<r.lowStockThreshold?'#f87171':'#fff'}}>{r.quantity}</span></td>
                   <td style={{color:'#64748b'}}>{r.unit}</td>
                   <td style={{color:'#64748b'}}>{r.lowStockThreshold>0?r.lowStockThreshold:'—'}</td>
+                  <td style={{color:'#94a3b8',fontSize:'0.8rem',maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.note||'—'}</td>
                   <td style={{color:'#94a3b8',fontSize:'0.8rem'}}>{r.recordedBy||'—'}</td>
                   {editable&&<td><div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end'}}><button className="btn btn-secondary" style={{padding:'0.35rem 0.6rem'}} onClick={()=>startEdit(r)}><Edit2 size={13}/></button><button className="btn btn-danger" style={{padding:'0.35rem 0.6rem'}} onClick={()=>deleteMut.mutate(r.id)}><Trash2 size={13}/></button></div></td>}
                 </tr>
