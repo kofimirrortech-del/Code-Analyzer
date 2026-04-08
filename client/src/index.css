@@ -51,6 +51,16 @@ body {
 }
 .btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,0.05); color: #fff; }
 
+.btn-secondary {
+  background: rgba(255,255,255,0.05);
+  color: #94a3b8;
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.1); color: #fff; border-color: rgba(255,255,255,0.2); }
+
 .btn-danger {
   background: rgba(239,68,68,0.1);
   color: #f87171;
@@ -83,6 +93,8 @@ body {
 }
 
 .table-wrap { overflow-x: auto; }
+.table-container { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; }
 
 table { width: 100%; border-collapse: collapse; }
 
@@ -138,6 +150,35 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
+}
+
+.modal-container {
+  background: #0f0f28;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1.75rem;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
 }
 
 .stat-card {

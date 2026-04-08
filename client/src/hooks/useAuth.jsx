@@ -13,22 +13,13 @@ export function useAuth() {
 
   const loginMutation = useMutation({
     mutationFn: ({ username, password }) => api.post('/auth/login', { username, password }),
-    onSuccess: (data) => {
-      qc.setQueryData(['me'], data);
-    },
+    onSuccess: (data) => { qc.setQueryData(['me'], data); },
   });
 
   const logoutMutation = useMutation({
     mutationFn: () => api.post('/auth/logout'),
-    onSuccess: () => {
-      qc.setQueryData(['me'], null);
-      qc.clear();
-      window.location.hash = '/login';
-    },
-    onError: () => {
-      qc.setQueryData(['me'], null);
-      window.location.hash = '/login';
-    },
+    onSuccess: () => { qc.setQueryData(['me'], null); qc.clear(); window.location.hash = '/login'; },
+    onError: () => { qc.setQueryData(['me'], null); window.location.hash = '/login'; },
   });
 
   return {

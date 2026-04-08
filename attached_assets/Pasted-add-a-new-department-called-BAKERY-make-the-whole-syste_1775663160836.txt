@@ -1,0 +1,22 @@
+add a new department called BAKERY 
+
+make the whole system as an inventory system where I can add users and assign what they can view and edit including what should appear on their dashboard. 
+add a Centralized Database: All inventory data is stored in one place, allowing for a real-time view of stock levels, locations, and usage history, which helps prevent overstocking or stockouts.
+
+add an Automated Reordering: When inventory dips to a pre-defined level, the system can automatically create purchase orders to suppliers, reducing the risk of running out of stock
+
+add a Multi-Channel Syncing: If one department supply to another in-department, the system instantly updates stock counts across all channels to avoid overstocking and low stock counts.
+
+add Reporting & Analytics: The software generates reports on supply trends, dispatch rates, and inventory performance, allowing for improved restocking and production decisions and forecasting
+
+Automated Replenishment: The system monitors stock levels against predefined "reorder points". When stock falls below a certain threshold, it can automatically generate purchase orders to alert ADMIN and be assignable to users.
+
+The Inventory Management Process
+Receive and record (store): Goods arrive and are recorded, then added to the system by manualy inputing the data or item name by assigned user or admin.
+Sort and Store: Items are stored, and their exact locations (eg: store and store keeper who recevied items) are recorded in the system.
+ As store and the store kepper(assigned user or admin) are done recording, the system automatically add items to already added inventory(in the store section) and when the store supplys to ingredient it automatically deducts from items in inventory(in the store section).
+
+Receive and record(ingredients). Goods suplied from STORE and are recorded, then added to the system, by manualy inputing the data or item name by asignd user or admin.
+As ingredient and the ingredient kepper(assigned user or admin) are done recording, the system automatically add items to already added inventory(in the ingredient section) and when the ingredient supplys to production it automatically deducts from items in inventory( in the ingredient section).
+ same formart applies to production, breaker, pkaging and dispatch.
+today's order and today's production should remain same but should be assignable by admin to users

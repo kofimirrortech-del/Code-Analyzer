@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.js';
 import { useAuth } from '../hooks/useAuth.jsx';
+import { canEdit } from '../utils/permissions.js';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, X, Tag } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Tag, ArrowRight } from 'lucide-react';
 
 const today = () => new Date().toISOString().split('T')[0];
 const EMPTY = { itemName: '', quantity: 0, addedStock: 0, closingStock: 0, lowStockThreshold: 0, unit: 'units', supplier: '' };
@@ -11,9 +12,12 @@ const EMPTY = { itemName: '', quantity: 0, addedStock: 0, closingStock: 0, lowSt
 export default function Store() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const editable = canEdit(user, 'store');
   const qc = useQueryClient();
   const [modal, setModal] = useState({ open: false, mode: 'create', data: EMPTY });
   const [newName, setNewName] = useState('');
+  const [supplyOpen, setSupplyOpen] = useState(false);
+  const [supplyForm, setSupplyForm] = useState({ itemName:'', quantity:'', unit:'units', note:'' });
 
   const { data: names = [] } = useQuery({ queryKey: ['store-names'], queryFn: () => api.get('/store/names') });
   const { data = [], isLoading } = useQuery({ queryKey: ['store', today()], queryFn: () => api.get(`/store?date=${today()}`) });
@@ -38,14 +42,27 @@ export default function Store() {
     onSuccess: () => { qc.invalidateQueries(['store']); toast.success('Record deleted'); },
     onError: e => toast.error(e.message),
   });
+  const supply = useMutation({
+    mutationFn: d => api.post('/transfers', d),
+    onSuccess: () => { qc.invalidateQueries(['store']); setSupplyOpen(false); setSupplyForm({ itemName:'', quantity:'', unit:'units', note:'' }); toast.success('Supplied to Ingredients!'); },
+    onError: e => toast.error(e.message || 'Transfer failed'),
+  });
 
   function set(k, v) { setModal(m => ({ ...m, data: { ...m.data, [k]: v } })); }
+  const setSF = (k, v) => setSupplyForm(p => ({ ...p, [k]: v }));
+  const handleSupply = () => {
+    if (!supplyForm.itemName || !supplyForm.quantity) { toast.error('Item and quantity required'); return; }
+    supply.mutate({ fromDept:'store', toDept:'ingredients', itemName:supplyForm.itemName, quantity:parseFloat(supplyForm.quantity), unit:supplyForm.unit, note:supplyForm.note });
+  };
 
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">Store</h1>
-        {isAdmin && <button className="btn btn-primary" onClick={() => setModal({ open: true, mode: 'create', data: { ...EMPTY } })}><Plus size={16} />Add Record</button>}
+        <div style={{ display:'flex', gap:'0.5rem' }}>
+          {editable && <button className="btn btn-secondary" onClick={() => setSupplyOpen(true)} style={{ gap:'0.4rem' }}><ArrowRight size={15}/>Supply to Ingredients</button>}
+          {isAdmin && <button className="btn btn-primary" onClick={() => setModal({ open: true, mode: 'create', data: { ...EMPTY } })}><Plus size={16} />Add Record</button>}
+        </div>
       </div>
 
       {isAdmin && (
@@ -103,6 +120,26 @@ export default function Store() {
           </div>
         )}
       </div>
+
+      {supplyOpen && (
+        <div className="overlay" onClick={() => setSupplyOpen(false)}>
+          <div className="modal-container" style={{ width:420 }} onClick={e => e.stopPropagation()}>
+            <h3 className="modal-title" style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}><ArrowRight size={18} color="#f59e0b"/> Supply to Ingredients</h3>
+            <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
+              <div><label className="label">Item Name</label><input className="input" list="store-supply-names" value={supplyForm.itemName} onChange={e=>setSF('itemName',e.target.value)} placeholder="Item name"/><datalist id="store-supply-names">{names.map(n=><option key={n.id} value={n.name}/>)}</datalist></div>
+              <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:'0.75rem' }}>
+                <div><label className="label">Quantity to Supply</label><input className="input" type="number" min="0" step="0.01" value={supplyForm.quantity} onChange={e=>setSF('quantity',e.target.value)} placeholder="0"/></div>
+                <div><label className="label">Unit</label><input className="input" value={supplyForm.unit} onChange={e=>setSF('unit',e.target.value)} placeholder="units"/></div>
+              </div>
+              <div><label className="label">Note (optional)</label><input className="input" value={supplyForm.note} onChange={e=>setSF('note',e.target.value)} placeholder="Optional note"/></div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setSupplyOpen(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSupply} disabled={supply.isPending}>{supply.isPending ? 'Transferring...' : 'Supply to Ingredients'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modal.open && (
         <div className="overlay" onClick={() => setModal(m => ({ ...m, open: false }))}>

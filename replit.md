@@ -2,114 +2,141 @@
 
 ## Overview
 
-Bakery management ERP system. Single project deployable on Render (free tier).
+A full-featured bakery inventory management ERP system. Deployable on Render free tier.
 
 ## Stack
 
 - **Backend**: Express.js (Node.js, plain JavaScript, ES modules)
 - **Frontend**: React 18 + Vite 5 + Tailwind CSS 4
 - **Database**: PostgreSQL (via `pg` library — no ORM)
-- **Auth**: Session-based (cookies, stored in `sessions` table)
+- **Auth**: Session-based (cookies, stored in `sessions` table, DB-backed users)
 - **Routing**: Wouter (hash-based routing in frontend)
 - **Data Fetching**: TanStack React Query v5
 - **Google Drive**: googleapis for backup feature
 
-## Project Structure
+## User Management
+
+Users are stored in the `users` table (not hardcoded). Admin can:
+- Add/edit/delete users from the **Users** page (`/users`)
+- Assign roles: ADMIN, STORE, INGREDIENT, PRODUCTION, BAKERY, PACKAGE, DISPATCH
+- Toggle active/inactive status
+- Configure per-user custom section permissions (view/edit per section)
+
+Default seeded users (created on first run if `users` table is empty):
+
+| Username     | Password   | Role        |
+|--------------|------------|-------------|
+| admin        | admin123   | ADMIN       |
+| store_user   | store789   | STORE       |
+| ing_user     | ing789     | INGREDIENT  |
+| prod_user    | prod789    | PRODUCTION  |
+| bakery_user  | bakery789  | BAKERY      |
+| pkg_user     | pkg789     | PACKAGE     |
+| disp_user    | disp789    | DISPATCH    |
+
+Passwords are hashed with `crypto.scryptSync`.
+
+## Permission System
+
+Each user has a `permissions` JSONB field. If null, uses role defaults:
+
+| Role        | Default Access                                          |
+|-------------|---------------------------------------------------------|
+| ADMIN       | Full access to everything (null = all)                  |
+| STORE       | Store (view+edit), Today's Production (view)            |
+| INGREDIENT  | Ingredients (view+edit), Today's Production (view)      |
+| PRODUCTION  | Production (view+edit), Today's Production (view)       |
+| BAKERY      | Bakery (view+edit), Today's Production (view)           |
+| PACKAGE     | Packaging (view+edit), Today's Order (view)             |
+| DISPATCH    | Dispatch (view+edit), Today's Order (view)              |
+
+Admin can override by setting custom permissions per user (any combination of view/edit per section).
+
+## Supply Chain (Multi-Channel Syncing)
+
+Each department can supply to the next in the chain:
 
 ```
-/
-├── server/
-│   ├── index.js                    - Express entry point
-│   ├── db.js                       - PostgreSQL pool + table migrations
-│   ├── middleware.js               - requireAuth (sets req.user)
-│   └── routes/
-│       ├── auth.js                 - Login, logout, /me
-│       ├── store.js                - Store CRUD + /names (persistent)
-│       ├── ingredients.js          - Ingredients CRUD + /names (persistent)
-│       ├── production.js           - Production CRUD + /products (persistent)
-│       ├── packages.js             - Packaging CRUD + /types (persistent)
-│       ├── dispatch.js             - Dispatch CRUD + /items (persistent)
-│       ├── todays-order-note.js    - Standalone Today's Order notes (admin write, all read)
-│       ├── todays-production-note.js - Standalone Today's Production notes (admin write, all read)
-│       ├── dashboard.js            - Dashboard stats
-│       ├── history.js              - Historical data by date
-│       └── gdrive.js               - Google Drive OAuth + backup
-├── client/src/
-│   ├── App.jsx                     - Routes + role-based redirects
-│   ├── components/Layout.jsx       - Sidebar + mobile nav (role-filtered)
-│   └── pages/
-│       ├── Login.jsx
-│       ├── Dashboard.jsx           - ADMIN only
-│       ├── Store.jsx               - ADMIN + STORE
-│       ├── Ingredients.jsx         - ADMIN + INGREDIENT
-│       ├── Production.jsx          - ADMIN + PRODUCTION (standalone, no links)
-│       ├── Packaging.jsx           - ADMIN + PACKAGE
-│       ├── Dispatch.jsx            - ADMIN + DISPATCH
-│       ├── TodaysOrder.jsx         - ADMIN (write) + PACKAGE/DISPATCH (read-only)
-│       ├── TodaysProduction.jsx    - ADMIN (write) + STORE/INGREDIENT/PRODUCTION (read-only)
-│       ├── History.jsx             - ADMIN only
-│       └── Settings.jsx            - ADMIN only, Google Drive config
+Store → Ingredients → Production → Bakery → Packaging → Dispatch
 ```
 
-## Role-Based Dashboard (Home page on login)
+When a transfer is recorded:
+1. Automatically **deducts** from source department stock
+2. Automatically **adds** to destination department stock
+3. Logs to `stock_transfers` table
+4. **Auto-creates a Purchase Order** if source stock falls below its reorder point
 
-| Role        | Home page          | Can also access             |
-|-------------|--------------------|-----------------------------|
-| ADMIN       | Dashboard (/)      | Everything                  |
-| STORE       | Today's Production | Store                       |
-| INGREDIENT  | Today's Production | Ingredients                 |
-| PRODUCTION  | Today's Production | Production                  |
-| PACKAGE     | Today's Order      | Packaging                   |
-| DISPATCH    | Today's Order      | Dispatch                    |
+Transfer API: `POST /api/transfers`
 
-Non-admin users can **edit** records in their section but **cannot add or delete**.
+## Automated Reordering (Purchase Orders)
 
-## Persistent Names (survive day changes)
+- Each item (Store, Ingredients, Bakery, Packaging) has a `low_stock_threshold` / reorder point
+- When a transfer causes stock to drop below the threshold, a pending PO is auto-created
+- Admin sees pending POs on the Dashboard (with alert banner) and manages them on `/purchase-orders`
+- POs can be assigned to any active user, have priority (high/normal/low), status tracking (pending → approved → received → closed)
 
-Each data section has a separate persistent names table:
-- `store_item_names` → Item Name column in Store
-- `ingredient_names` → Name column in Ingredients
-- `production_product_names` → Product column in Production
-- `package_type_names` → Package Type column in Packaging
-- `dispatch_item_names` → Item column in Dispatch
+## Analytics & Reports (`/analytics`)
 
-Daily records are filtered by today's date. Names never wipe.
+- Department stock overview (all 6 departments)
+- Low stock alerts across all departments (with visual stock bars)
+- Recent transfer history (last 100)
+- Dispatch revenue trends (last 30 days)
 
-## Standalone Note Sections (admin-managed)
+## Departments / Sections
 
-- **Today's Order** (`/todays-order`): `todays_order_notes` table — only Date (auto) + Note (unlimited)
-- **Today's Production** (`/todays-production`): `todays_production_notes` table — only Date (auto) + Note (unlimited)
-- These two are completely independent of each other and of all other sections.
+| Section            | Nav Key            | Supply To    |
+|--------------------|--------------------|--------------|
+| Store              | `store`            | Ingredients  |
+| Ingredients        | `ingredients`      | Production   |
+| Production         | `production`       | Bakery       |
+| Bakery             | `bakery`           | Packaging    |
+| Packaging          | `packaging`        | Dispatch     |
+| Dispatch           | `dispatch`         | (end)        |
+| Today's Order      | `todays-order`     | —            |
+| Today's Production | `todays-production`| —            |
+
+## Admin-Only Pages
+
+- Dashboard (`/`) — enhanced with transfer count, pending POs, low stock across all depts
+- Analytics (`/analytics`) — comprehensive reports
+- Purchase Orders (`/purchase-orders`) — reorder management
+- Users (`/users`) — user management with permission matrix
+- History (`/history`)
+- Settings (`/settings`) — Google Drive backup
 
 ## Database Tables
 
-All auto-created on first server start:
+All auto-created on first server start (`initDb()`):
+
+**Auth & Users:**
 - `sessions` — auth sessions
-- `store_item_names`, `ingredient_names`, `production_product_names`, `package_type_names`, `dispatch_item_names` — persistent names
-- `store_items`, `ingredients`, `production_batches`, `packages`, `orders` — daily data (date-filtered)
-- `todays_order_notes`, `todays_production_notes` — standalone admin note sections
-- `settings` — Google Drive tokens
+- `users` — dynamic users (username, password_hash, role, permissions JSONB, is_active)
 
-## Hardcoded Users
+**Persistent Names:**
+- `store_item_names`, `ingredient_names`, `production_product_names`, `bakery_item_names`, `package_type_names`, `dispatch_item_names`
 
-| Username    | Password  | Role        |
-|-------------|-----------|-------------|
-| admin       | admin123  | ADMIN       |
-| store_user  | store789  | STORE       |
-| ing_user    | ing789    | INGREDIENT  |
-| prod_user   | prod789   | PRODUCTION  |
-| pkg_user    | pkg789    | PACKAGE     |
-| disp_user   | disp789   | DISPATCH    |
+**Daily Data:**
+- `store_items`, `ingredients`, `production_batches`, `bakery_items`, `packages`, `orders`
+
+**Standalone Notes:**
+- `todays_order_notes`, `todays_production_notes`
+
+**Supply Chain:**
+- `stock_transfers` — full audit log of all inter-dept transfers
+- `purchase_orders` — reorder alerts/POs with status, assignment, priority
+
+**Settings:**
+- `settings` — Google Drive tokens etc.
 
 ## Development on Replit
 
-Two workflows run simultaneously:
+Two workflows:
 - **API Server** — `API_PORT=3000 PORT=3000 node server/index.js`
-- **Start application** — `API_PORT=3000 PORT=5173 cd client && npm run dev` (proxies `/api` → port 3000)
+- **Start application** — `API_PORT=3000 PORT=5173 cd client && npm run dev`
 
 ## Deploying to Render (Free Tier)
 
 - **Build**: `npm install && npm run build`
 - **Start**: `node server/index.js`
 - Required env vars: `DATABASE_URL`, `SESSION_SECRET`, `APP_URL`, `NODE_ENV=production`
-- Optional (Google Drive): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- Optional: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (for Drive backup)

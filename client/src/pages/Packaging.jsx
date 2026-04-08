@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, X, Tag } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Tag, ArrowRight } from 'lucide-react';
+import { canEdit } from '../utils/permissions.js';
 
 const today = () => new Date().toISOString().split('T')[0];
 const EMPTY = { packageType: '', stock: 0, addedStock: 0, supply: 0, closingStock: 0 };
@@ -11,9 +12,12 @@ const EMPTY = { packageType: '', stock: 0, addedStock: 0, supply: 0, closingStoc
 export default function Packaging() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const editable = canEdit(user, 'packaging');
   const qc = useQueryClient();
   const [modal, setModal] = useState({ open: false, mode: 'create', data: EMPTY });
   const [newType, setNewType] = useState('');
+  const [supplyOpen, setSupplyOpen] = useState(false);
+  const [supplyForm, setSupplyForm] = useState({ itemName:'', quantity:'', unit:'units', note:'' });
 
   const { data: types = [] } = useQuery({ queryKey: ['package-types'], queryFn: () => api.get('/packages/types') });
   const { data = [], isLoading } = useQuery({ queryKey: ['packages', today()], queryFn: () => api.get(`/packages?date=${today()}`) });
@@ -39,14 +43,48 @@ export default function Packaging() {
     onError: e => toast.error(e.message),
   });
 
+  const supply = useMutation({
+    mutationFn: d => api.post('/transfers', d),
+    onSuccess: () => { qc.invalidateQueries(['packages']); setSupplyOpen(false); setSupplyForm({ itemName:'', quantity:'', unit:'units', note:'' }); toast.success('Supplied to Dispatch!'); },
+    onError: e => toast.error(e.message || 'Transfer failed'),
+  });
+
   function set(k, v) { setModal(m => ({ ...m, data: { ...m.data, [k]: v } })); }
+  const setSF = (k, v) => setSupplyForm(p => ({ ...p, [k]: v }));
+  const handleSupply = () => {
+    if (!supplyForm.itemName || !supplyForm.quantity) { toast.error('Item and quantity required'); return; }
+    supply.mutate({ fromDept:'packaging', toDept:'dispatch', itemName:supplyForm.itemName, quantity:parseFloat(supplyForm.quantity), unit:supplyForm.unit, note:supplyForm.note });
+  };
 
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">Packaging</h1>
-        {isAdmin && <button className="btn btn-primary" onClick={() => setModal({ open: true, mode: 'create', data: { ...EMPTY } })}><Plus size={16} />Add Record</button>}
+        <div style={{ display:'flex', gap:'0.5rem' }}>
+          {editable && <button className="btn btn-secondary" onClick={() => setSupplyOpen(true)} style={{ gap:'0.4rem' }}><ArrowRight size={15}/>Supply to Dispatch</button>}
+          {isAdmin && <button className="btn btn-primary" onClick={() => setModal({ open: true, mode: 'create', data: { ...EMPTY } })}><Plus size={16} />Add Record</button>}
+        </div>
       </div>
+
+      {supplyOpen && (
+        <div className="overlay" onClick={() => setSupplyOpen(false)}>
+          <div className="modal-container" style={{ width:420 }} onClick={e => e.stopPropagation()}>
+            <h3 className="modal-title" style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}><ArrowRight size={18} color="#14b8a6"/> Supply to Dispatch</h3>
+            <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
+              <div><label className="label">Package Type</label><input className="input" list="pkg-supply-types" value={supplyForm.itemName} onChange={e=>setSF('itemName',e.target.value)} placeholder="Package type"/><datalist id="pkg-supply-types">{types.map(t=><option key={t.id} value={t.name}/>)}</datalist></div>
+              <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:'0.75rem' }}>
+                <div><label className="label">Quantity</label><input className="input" type="number" min="0" step="0.01" value={supplyForm.quantity} onChange={e=>setSF('quantity',e.target.value)} placeholder="0"/></div>
+                <div><label className="label">Unit</label><input className="input" value={supplyForm.unit} onChange={e=>setSF('unit',e.target.value)} placeholder="units"/></div>
+              </div>
+              <div><label className="label">Note (optional)</label><input className="input" value={supplyForm.note} onChange={e=>setSF('note',e.target.value)} placeholder="Optional note"/></div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={() => setSupplyOpen(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSupply} disabled={supply.isPending}>{supply.isPending ? 'Transferring...' : 'Supply to Dispatch'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isAdmin && (
         <div className="card" style={{ marginBottom: '1rem', padding: '1.25rem' }}>
