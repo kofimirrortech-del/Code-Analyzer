@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.js';
 import { useAuth } from '../hooks/useAuth.jsx';
+import { canEdit } from '../utils/permissions.js';
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, X, ClipboardCheck } from 'lucide-react';
 
@@ -15,7 +16,7 @@ function autoResize(el) {
 
 export default function TodaysProduction() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = canEdit(user, 'todays-production');
   const qc = useQueryClient();
   const [modal, setModal] = useState({ open: false, mode: 'create', note: '', editId: null });
 

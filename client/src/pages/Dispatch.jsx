@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.js';
 import { useAuth } from '../hooks/useAuth.jsx';
+import { canEdit } from '../utils/permissions.js';
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, X, Tag, TrendingUp } from 'lucide-react';
 
@@ -11,6 +12,7 @@ const EMPTY = { notes: '', item: '', quantity: 0, unitCost: 0 };
 export default function Dispatch() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const editable = canEdit(user, 'dispatch');
   const qc = useQueryClient();
   const [modal, setModal] = useState({ open: false, mode: 'create', data: EMPTY });
   const [newItem, setNewItem] = useState('');
@@ -48,7 +50,7 @@ export default function Dispatch() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Dispatch / Orders</h1>
-        {isAdmin && <button className="btn btn-primary" onClick={() => setModal({ open: true, mode: 'create', data: { ...EMPTY } })}><Plus size={16} />Add Order</button>}
+        {editable && <button className="btn btn-primary" onClick={() => setModal({ open: true, mode: 'create', data: { ...EMPTY } })}><Plus size={16} />Add Order</button>}
       </div>
 
       {isAdmin && (
@@ -106,7 +108,7 @@ export default function Dispatch() {
                     <td style={{ color: '#64748b' }}>{o.date}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn btn-ghost" style={{ padding: '0.375rem 0.75rem' }} onClick={() => setModal({ open: true, mode: 'edit', data: { ...o } })}><Pencil size={14} /></button>
+                        {editable && <button className="btn btn-ghost" style={{ padding: '0.375rem 0.75rem' }} onClick={() => setModal({ open: true, mode: 'edit', data: { ...o } })}><Pencil size={14} /></button>}
                         {isAdmin && <button className="btn btn-danger" style={{ padding: '0.375rem 0.75rem' }} onClick={() => { if (confirm('Delete?')) del.mutate(o.id); }}><Trash2 size={14} /></button>}
                       </div>
                     </td>

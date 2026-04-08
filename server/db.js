@@ -107,6 +107,17 @@ export async function initDb() {
     key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TIMESTAMP DEFAULT NOW()
   )`);
 
+  /* ── Role default permissions ── */
+  const ROLE_DEFAULTS = {
+    ADMIN:       null,
+    STORE:       { store: { view: true, edit: true }, 'todays-production': { view: true, edit: false } },
+    INGREDIENT:  { ingredients: { view: true, edit: true }, 'todays-production': { view: true, edit: false } },
+    PRODUCTION:  { production: { view: true, edit: true }, 'todays-production': { view: true, edit: false } },
+    BAKERY:      { bakery: { view: true, edit: true }, 'todays-production': { view: true, edit: false } },
+    PACKAGE:     { packaging: { view: true, edit: true }, 'todays-order': { view: true, edit: false } },
+    DISPATCH:    { dispatch: { view: true, edit: true }, 'todays-order': { view: true, edit: false } },
+  };
+
   /* ── Seed default users if none exist ── */
   const { rows } = await query('SELECT COUNT(*) FROM users');
   if (parseInt(rows[0].count) === 0) {
@@ -120,13 +131,24 @@ export async function initDb() {
       { u: 'disp_user',  p: 'disp789',   r: 'DISPATCH' },
     ];
     for (const d of defaults) {
+      const perms = ROLE_DEFAULTS[d.r];
       await query(
-        'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING',
-        [d.u, hashPassword(d.p), d.r]
+        'INSERT INTO users (username, password_hash, role, permissions) VALUES ($1, $2, $3, $4) ON CONFLICT (username) DO NOTHING',
+        [d.u, hashPassword(d.p), d.r, perms ? JSON.stringify(perms) : null]
       );
     }
     console.log('Default users seeded');
   }
+
+  /* ── Backfill permissions for existing users with null permissions (non-admin) ── */
+  const { rows: nullPerms } = await query("SELECT id, role FROM users WHERE permissions IS NULL AND role != 'ADMIN'");
+  for (const u of nullPerms) {
+    const perms = ROLE_DEFAULTS[u.role];
+    if (perms) {
+      await query('UPDATE users SET permissions = $1 WHERE id = $2', [JSON.stringify(perms), u.id]);
+    }
+  }
+  if (nullPerms.length > 0) console.log(`Backfilled permissions for ${nullPerms.length} users`);
 
   console.log('Database initialized');
 }
