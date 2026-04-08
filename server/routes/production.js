@@ -8,7 +8,8 @@ const today = () => new Date().toISOString().split('T')[0];
 function fmt(r) {
   return {
     id: r.id, product: r.product, quantityProduced: parseFloat(r.quantity_produced ?? 0),
-    unit: r.unit ?? 'units', baker: r.baker, note: r.note ?? '', date: r.date, createdAt: r.created_at,
+    unit: r.unit ?? 'units', baker: r.baker, note: r.note ?? '',
+    recordedBy: r.recorded_by ?? '', date: r.date, createdAt: r.created_at,
   };
 }
 
@@ -42,22 +43,24 @@ router.get('/', requireAuth, async (req, res) => {
 
 router.post('/', requireAuth, async (req, res) => {
   const { product, quantityProduced = 0, unit = 'units', baker, note = '' } = req.body;
-  if (!product || !baker) return res.status(400).json({ error: 'product and baker are required' });
+  if (!product) return res.status(400).json({ error: 'product is required' });
+  const bakerName = baker || req.user.username;
   await query('INSERT INTO production_product_names (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [product.trim()]);
   const { rows } = await query(
-    'INSERT INTO production_batches (product,quantity_produced,unit,baker,note,date) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-    [product, quantityProduced, unit, baker, note, today()]
+    'INSERT INTO production_batches (product,quantity_produced,unit,baker,note,recorded_by,date) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+    [product, quantityProduced, unit, bakerName, note, req.user.username, today()]
   );
   res.status(201).json(fmt(rows[0]));
 });
 
 router.put('/:id', requireAuth, async (req, res) => {
   const { product, quantityProduced = 0, unit = 'units', baker, note = '' } = req.body;
-  if (!product || !baker) return res.status(400).json({ error: 'product and baker are required' });
+  if (!product) return res.status(400).json({ error: 'product is required' });
+  const bakerName = baker || req.user.username;
   await query('INSERT INTO production_product_names (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [product.trim()]);
   const { rows } = await query(
     'UPDATE production_batches SET product=$1,quantity_produced=$2,unit=$3,baker=$4,note=$5 WHERE id=$6 RETURNING *',
-    [product, quantityProduced, unit, baker, note, req.params.id]
+    [product, quantityProduced, unit, bakerName, note, req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Not found' });
   res.json(fmt(rows[0]));

@@ -7,7 +7,7 @@ import { Plus, Pencil, Trash2, X, Tag, ArrowRight } from 'lucide-react';
 import { canEdit } from '../utils/permissions.js';
 
 const today = () => new Date().toISOString().split('T')[0];
-const EMPTY = { packageType: '', stock: 0, addedStock: 0, supply: 0, closingStock: 0 };
+const EMPTY = { packageType: '', stock: 0, addedStock: 0, supply: 0, lowStockThreshold: 0 };
 
 export default function Packaging() {
   const { user } = useAuth();
@@ -112,10 +112,10 @@ export default function Packaging() {
         {isLoading ? <div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto' }} /></div> : (
           <div className="table-wrap">
             <table>
-              <thead><tr>{['#','Package Type','Opening Stock','Added Stock','Supply','Closing Stock','Total Stock','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+              <thead><tr>{['#','Package Type','Opening','Added','Supply','Closing','Threshold','Recorded By','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
               <tbody>
                 {data.length === 0 ? (
-                  <tr><td colSpan={9} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No records for today.</td></tr>
+                  <tr><td colSpan={10} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No records for today.</td></tr>
                 ) : data.map((item, i) => (
                   <tr key={item.id}>
                     <td style={{ color: '#4a5568' }}>{i + 1}</td>
@@ -123,8 +123,9 @@ export default function Packaging() {
                     <td>{item.stock}</td>
                     <td>{item.addedStock}</td>
                     <td>{item.supply}</td>
-                    <td>{item.closingStock}</td>
-                    <td><span className="badge badge-amber">{item.totalStock}</span></td>
+                    <td><span className={item.lowStockThreshold > 0 && item.closingStock < item.lowStockThreshold ? 'badge badge-red' : 'badge badge-amber'}>{item.closingStock}</span></td>
+                    <td style={{ color: '#64748b' }}>{item.lowStockThreshold || '—'}</td>
+                    <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{item.recordedBy || '—'}</td>
                     <td style={{ color: '#64748b' }}>{item.date}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -155,9 +156,12 @@ export default function Packaging() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div><label className="label">Opening Stock</label><input className="input" type="number" step="0.01" value={modal.data.stock} onChange={e => set('stock', e.target.value)} /></div>
-                <div><label className="label">Added Stock</label><input className="input" type="number" step="0.01" value={modal.data.addedStock} onChange={e => set('addedStock', e.target.value)} /></div>
-                <div><label className="label">Supply</label><input className="input" type="number" step="0.01" value={modal.data.supply} onChange={e => set('supply', e.target.value)} /></div>
-                <div><label className="label">Closing Stock</label><input className="input" type="number" step="0.01" value={modal.data.closingStock} onChange={e => set('closingStock', e.target.value)} /></div>
+                <div><label className="label">Added Stock (Received)</label><input className="input" type="number" step="0.01" value={modal.data.addedStock} onChange={e => set('addedStock', e.target.value)} /></div>
+                <div><label className="label">Supply Out</label><input className="input" type="number" step="0.01" value={modal.data.supply} onChange={e => set('supply', e.target.value)} /></div>
+                <div><label className="label">Low Stock Threshold</label><input className="input" type="number" step="0.01" value={modal.data.lowStockThreshold} onChange={e => set('lowStockThreshold', e.target.value)} placeholder="0 = disabled" /></div>
+              </div>
+              <div style={{ padding: '0.6rem 0.9rem', background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.2)', borderRadius: 8, fontSize: '0.8rem', color: '#94a3b8' }}>
+                Closing stock is auto-calculated: Opening + Added − Supply. Deductions also happen automatically when you supply to Dispatch.
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setModal(m => ({ ...m, open: false }))}>Cancel</button>

@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, X, Tag, ArrowRight } from 'lucide-react';
 
 const today = () => new Date().toISOString().split('T')[0];
-const EMPTY = { name: '', stock: 0, unit: 'kg' };
+const EMPTY = { name: '', stock: 0, unit: 'kg', lowStockThreshold: 0 };
 
 export default function Ingredients() {
   const { user } = useAuth();
@@ -91,16 +91,18 @@ export default function Ingredients() {
         {isLoading ? <div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto' }} /></div> : (
           <div className="table-wrap">
             <table>
-              <thead><tr>{['#','Name','Stock','Unit','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+              <thead><tr>{['#','Name','Stock','Unit','Low Threshold','Recorded By','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
               <tbody>
                 {data.length === 0 ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No ingredients for today.</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No ingredients for today.</td></tr>
                 ) : data.map((item, i) => (
                   <tr key={item.id}>
                     <td style={{ color: '#4a5568' }}>{i + 1}</td>
                     <td style={{ color: '#fff', fontWeight: 500 }}>{item.name}</td>
-                    <td><span className="badge badge-amber">{item.stock}</span></td>
+                    <td><span className={item.lowStockThreshold > 0 && item.stock < item.lowStockThreshold ? 'badge badge-red' : 'badge badge-amber'}>{item.stock}</span></td>
                     <td>{item.unit}</td>
+                    <td>{item.lowStockThreshold || '—'}</td>
+                    <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{item.recordedBy || '—'}</td>
                     <td style={{ color: '#64748b' }}>{item.date}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -152,6 +154,7 @@ export default function Ingredients() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div><label className="label">Stock</label><input className="input" type="number" step="0.01" value={modal.data.stock} onChange={e => set('stock', e.target.value)} /></div>
                 <div><label className="label">Unit *</label><input className="input" value={modal.data.unit} onChange={e => set('unit', e.target.value)} placeholder="kg, liters..." /></div>
+                <div style={{ gridColumn: '1 / -1' }}><label className="label">Low Stock Threshold (reorder point)</label><input className="input" type="number" step="0.01" value={modal.data.lowStockThreshold} onChange={e => set('lowStockThreshold', e.target.value)} placeholder="0 = disabled" /></div>
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setModal(m => ({ ...m, open: false }))}>Cancel</button>

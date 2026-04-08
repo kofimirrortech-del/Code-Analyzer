@@ -4,7 +4,11 @@ import { requireAuth } from '../middleware.js';
 
 const router = Router();
 const today = () => new Date().toISOString().split('T')[0];
-const fmt = r => ({ id: r.id, itemName: r.item_name, quantity: parseFloat(r.quantity ?? 0), unit: r.unit ?? 'units', lowStockThreshold: parseFloat(r.low_stock_threshold ?? 0), date: r.date, createdAt: r.created_at });
+const fmt = r => ({
+  id: r.id, itemName: r.item_name, quantity: parseFloat(r.quantity ?? 0),
+  unit: r.unit ?? 'units', lowStockThreshold: parseFloat(r.low_stock_threshold ?? 0),
+  recordedBy: r.recorded_by ?? '', date: r.date, createdAt: r.created_at,
+});
 
 /* Persistent names */
 router.get('/names', requireAuth, async (_req, res) => {
@@ -33,8 +37,8 @@ router.post('/', requireAuth, async (req, res) => {
   if (!itemName) return res.status(400).json({ error: 'itemName required' });
   await query('INSERT INTO bakery_item_names (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [itemName.trim()]);
   const { rows } = await query(
-    'INSERT INTO bakery_items (item_name,quantity,unit,low_stock_threshold,date) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-    [itemName, quantity, unit, lowStockThreshold, today()]
+    'INSERT INTO bakery_items (item_name,quantity,unit,low_stock_threshold,recorded_by,date) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+    [itemName, quantity, unit, lowStockThreshold, req.user.username, today()]
   );
   res.status(201).json(fmt(rows[0]));
 });

@@ -117,9 +117,9 @@ export default function Bakery() {
         )}
         <div className="table-container">
           <table className="table">
-            <thead><tr><th>Item Name</th><th>Quantity</th><th>Unit</th><th>Reorder Point</th>{editable&&<th style={{textAlign:'right'}}>Actions</th>}</tr></thead>
+            <thead><tr><th>Item Name</th><th>Quantity</th><th>Unit</th><th>Reorder Point</th><th>Recorded By</th>{editable&&<th style={{textAlign:'right'}}>Actions</th>}</tr></thead>
             <tbody>
-              {!items.length && <tr><td colSpan={editable?5:4} style={{textAlign:'center',color:'#4a5568',padding:'2rem'}}>No bakery items recorded today</td></tr>}
+              {!items.length && <tr><td colSpan={editable?6:5} style={{textAlign:'center',color:'#4a5568',padding:'2rem'}}>No bakery items recorded today</td></tr>}
               {items.map(r => editId===r.id ? (
                 <tr key={r.id}>
                   <td><input className="input" list="bk-names-edit" value={editRow.itemName} onChange={e=>setEditRow(p=>({...p,itemName:e.target.value}))}/><datalist id="bk-names-edit">{names.map(n=><option key={n.id} value={n.name}/>)}</datalist></td>
@@ -134,6 +134,7 @@ export default function Bakery() {
                   <td><span style={{fontWeight:700,color: r.lowStockThreshold>0&&r.quantity<r.lowStockThreshold?'#f87171':'#fff'}}>{r.quantity}</span></td>
                   <td style={{color:'#64748b'}}>{r.unit}</td>
                   <td style={{color:'#64748b'}}>{r.lowStockThreshold>0?r.lowStockThreshold:'—'}</td>
+                  <td style={{color:'#94a3b8',fontSize:'0.8rem'}}>{r.recordedBy||'—'}</td>
                   {editable&&<td><div style={{display:'flex',gap:'0.5rem',justifyContent:'flex-end'}}><button className="btn btn-secondary" style={{padding:'0.35rem 0.6rem'}} onClick={()=>startEdit(r)}><Edit2 size={13}/></button><button className="btn btn-danger" style={{padding:'0.35rem 0.6rem'}} onClick={()=>deleteMut.mutate(r.id)}><Trash2 size={13}/></button></div></td>}
                 </tr>
               ))}

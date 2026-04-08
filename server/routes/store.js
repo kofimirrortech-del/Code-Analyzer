@@ -9,11 +9,13 @@ function fmt(r) {
   const qty = parseFloat(r.quantity ?? 0);
   const added = parseFloat(r.added_stock ?? 0);
   const threshold = parseFloat(r.low_stock_threshold ?? 0);
+  const closing = parseFloat(r.closing_stock ?? 0);
   return {
     id: r.id, itemName: r.item_name, quantity: qty, addedStock: added,
-    totalStock: qty + added, closingStock: parseFloat(r.closing_stock ?? 0),
-    lowStockThreshold: threshold, isLowStock: threshold > 0 && (qty + added) < threshold,
-    unit: r.unit ?? 'units', supplier: r.supplier ?? '', date: r.date, createdAt: r.created_at,
+    totalStock: qty + added, closingStock: closing,
+    lowStockThreshold: threshold, isLowStock: threshold > 0 && closing < threshold,
+    unit: r.unit ?? 'units', supplier: r.supplier ?? '',
+    recordedBy: r.recorded_by ?? '', date: r.date, createdAt: r.created_at,
   };
 }
 
@@ -38,7 +40,7 @@ router.delete('/names/:nameId', requireAuth, async (req, res) => {
   res.json({ success: true });
 });
 
-/* ── Daily records (filtered to today by default) ── */
+/* ── Daily records ── */
 router.get('/', requireAuth, async (req, res) => {
   const date = req.query.date || today();
   const { rows } = await query('SELECT * FROM store_items WHERE date=$1 ORDER BY created_at ASC', [date]);
@@ -46,20 +48,22 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 router.post('/', requireAuth, async (req, res) => {
-  const { itemName, quantity = 0, addedStock = 0, closingStock = 0, lowStockThreshold = 0, unit = 'units', supplier = '' } = req.body;
+  const { itemName, quantity = 0, addedStock = 0, lowStockThreshold = 0, unit = 'units', supplier = '' } = req.body;
   if (!itemName) return res.status(400).json({ error: 'itemName is required' });
+  const closingStock = parseFloat(quantity) + parseFloat(addedStock);
   await query('INSERT INTO store_item_names (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [itemName.trim()]);
   const { rows } = await query(
-    `INSERT INTO store_items (item_name,quantity,added_stock,closing_stock,low_stock_threshold,unit,supplier,date)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-    [itemName, quantity, addedStock, closingStock, lowStockThreshold, unit, supplier, today()]
+    `INSERT INTO store_items (item_name,quantity,added_stock,closing_stock,low_stock_threshold,unit,supplier,recorded_by,date)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+    [itemName, quantity, addedStock, closingStock, lowStockThreshold, unit, supplier, req.user.username, today()]
   );
   res.status(201).json(fmt(rows[0]));
 });
 
 router.put('/:id', requireAuth, async (req, res) => {
-  const { itemName, quantity = 0, addedStock = 0, closingStock = 0, lowStockThreshold = 0, unit = 'units', supplier = '' } = req.body;
+  const { itemName, quantity = 0, addedStock = 0, lowStockThreshold = 0, unit = 'units', supplier = '' } = req.body;
   if (!itemName) return res.status(400).json({ error: 'itemName is required' });
+  const closingStock = parseFloat(quantity) + parseFloat(addedStock);
   await query('INSERT INTO store_item_names (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [itemName.trim()]);
   const { rows } = await query(
     `UPDATE store_items SET item_name=$1,quantity=$2,added_stock=$3,closing_stock=$4,low_stock_threshold=$5,unit=$6,supplier=$7 WHERE id=$8 RETURNING *`,

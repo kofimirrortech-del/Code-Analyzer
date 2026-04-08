@@ -7,7 +7,11 @@ const today = () => new Date().toISOString().split('T')[0];
 
 function fmt(r) {
   const qty = parseFloat(r.quantity ?? 0), unitCost = parseFloat(r.unit_cost ?? 0);
-  return { id: r.id, notes: r.notes ?? '', item: r.item ?? '', quantity: qty, unitCost, total: qty * unitCost, date: r.date, createdAt: r.created_at };
+  return {
+    id: r.id, notes: r.notes ?? '', item: r.item ?? '',
+    quantity: qty, unitCost, total: qty * unitCost,
+    recordedBy: r.recorded_by ?? '', date: r.date, createdAt: r.created_at,
+  };
 }
 
 /* ── Persistent item names ── */
@@ -44,8 +48,8 @@ router.post('/', requireAuth, async (req, res) => {
   await query('INSERT INTO dispatch_item_names (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [item.trim()]);
   const total = parseFloat(quantity) * parseFloat(unitCost);
   const { rows } = await query(
-    'INSERT INTO orders (notes,item,quantity,unit_cost,total,date) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-    [notes, item, quantity, unitCost, total, today()]
+    'INSERT INTO orders (notes,item,quantity,unit_cost,total,recorded_by,date) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+    [notes, item, quantity, unitCost, total, req.user.username, today()]
   );
   res.status(201).json(fmt(rows[0]));
 });

@@ -93,10 +93,10 @@ export default function Dispatch() {
         {isLoading ? <div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto' }} /></div> : (
           <div className="table-wrap">
             <table>
-              <thead><tr>{['#','Notes','Item','Quantity','Unit Cost (₵)','Total (₵)','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+              <thead><tr>{['#','Notes','Item','Quantity','Unit Cost (₵)','Total (₵)','Recorded By','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
               <tbody>
                 {data.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No orders for today.</td></tr>
+                  <tr><td colSpan={9} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No orders for today.</td></tr>
                 ) : data.map((o, i) => (
                   <tr key={o.id}>
                     <td style={{ color: '#4a5568' }}>{i + 1}</td>
@@ -105,6 +105,7 @@ export default function Dispatch() {
                     <td>{o.quantity}</td>
                     <td>{o.unitCost.toFixed(2)}</td>
                     <td><span className="badge badge-green">₵{o.total.toFixed(2)}</span></td>
+                    <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{o.recordedBy || '—'}</td>
                     <td style={{ color: '#64748b' }}>{o.date}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>

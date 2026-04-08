@@ -128,6 +128,16 @@ All auto-created on first server start (`initDb()`):
 **Settings:**
 - `settings` — Google Drive tokens etc.
 
+## Completed Features (All Departments)
+
+- **`recorded_by` column** — All daily tables track which user created each row (auto-set from session)
+- **Auto-calculated closing stock** — Store: opening + addedStock; Packaging: stock + addedStock − supply (no manual entry)
+- **Low stock threshold on all departments** — Store, Ingredients, Bakery, Packaging all have reorder points; triggers auto-PO
+- **Permission enforcement** — All Add/Edit buttons use `canEdit(user, section)` (not hard-coded isAdmin)
+- **Permissions backfill** — Server startup fills null permissions for non-admin users using ROLE_DEFAULTS
+- **Production baker auto-fill** — Baker field pre-fills with logged-in username; optional (backend falls back to username anyway)
+- **Bakery "Recorded By" column** — Shows which user last updated each bakery item row
+
 ## Development on Replit
 
 Two workflows:

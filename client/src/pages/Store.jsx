@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, X, Tag, ArrowRight } from 'lucide-react';
 
 const today = () => new Date().toISOString().split('T')[0];
-const EMPTY = { itemName: '', quantity: 0, addedStock: 0, closingStock: 0, lowStockThreshold: 0, unit: 'units', supplier: '' };
+const EMPTY = { itemName: '', quantity: 0, addedStock: 0, lowStockThreshold: 0, unit: 'units', supplier: '' };
 
 export default function Store() {
   const { user } = useAuth();
@@ -92,20 +92,21 @@ export default function Store() {
         {isLoading ? <div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto' }} /></div> : (
           <div className="table-wrap">
             <table>
-              <thead><tr>{['#','Item Name','Qty','Added Stock','Closing','Low Threshold','Unit','Supplier','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+              <thead><tr>{['#','Item Name','Opening','Added','Closing','Low Threshold','Unit','Supplier','Recorded By','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
               <tbody>
                 {data.length === 0 ? (
-                  <tr><td colSpan={10} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No records for today. {editable && 'Add one above.'}</td></tr>
+                  <tr><td colSpan={11} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No records for today. {editable && 'Add one above.'}</td></tr>
                 ) : data.map((item, i) => (
                   <tr key={item.id}>
                     <td style={{ color: '#4a5568' }}>{i + 1}</td>
                     <td style={{ color: '#fff', fontWeight: 500 }}>{item.itemName}</td>
                     <td>{item.quantity}</td>
                     <td>{item.addedStock}</td>
-                    <td>{item.closingStock}</td>
+                    <td><span className={item.isLowStock ? 'badge badge-red' : 'badge badge-green'}>{item.closingStock}</span></td>
                     <td>{item.lowStockThreshold}</td>
                     <td>{item.unit}</td>
                     <td>{item.supplier}</td>
+                    <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{item.recordedBy || '—'}</td>
                     <td style={{ color: '#64748b' }}>{item.date}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -155,12 +156,14 @@ export default function Store() {
                 <datalist id="store-names-dl">{names.map(n => <option key={n.id} value={n.name} />)}</datalist>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div><label className="label">Quantity</label><input className="input" type="number" step="0.01" value={modal.data.quantity} onChange={e => set('quantity', e.target.value)} /></div>
-                <div><label className="label">Added Stock</label><input className="input" type="number" step="0.01" value={modal.data.addedStock} onChange={e => set('addedStock', e.target.value)} /></div>
-                <div><label className="label">Closing Stock</label><input className="input" type="number" step="0.01" value={modal.data.closingStock} onChange={e => set('closingStock', e.target.value)} /></div>
+                <div><label className="label">Opening Stock</label><input className="input" type="number" step="0.01" value={modal.data.quantity} onChange={e => set('quantity', e.target.value)} /></div>
+                <div><label className="label">Added Stock (Received)</label><input className="input" type="number" step="0.01" value={modal.data.addedStock} onChange={e => set('addedStock', e.target.value)} /></div>
                 <div><label className="label">Low Stock Threshold</label><input className="input" type="number" step="0.01" value={modal.data.lowStockThreshold} onChange={e => set('lowStockThreshold', e.target.value)} /></div>
                 <div><label className="label">Unit</label><input className="input" value={modal.data.unit} onChange={e => set('unit', e.target.value)} placeholder="kg, units..." /></div>
-                <div><label className="label">Supplier</label><input className="input" value={modal.data.supplier} onChange={e => set('supplier', e.target.value)} placeholder="Supplier name" /></div>
+                <div style={{ gridColumn: '1 / -1' }}><label className="label">Supplier</label><input className="input" value={modal.data.supplier} onChange={e => set('supplier', e.target.value)} placeholder="Supplier name" /></div>
+              </div>
+              <div style={{ padding: '0.6rem 0.9rem', background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.2)', borderRadius: 8, fontSize: '0.8rem', color: '#94a3b8' }}>
+                Closing stock is auto-calculated: Opening + Added Stock. Deductions happen automatically when you supply to Ingredients.
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setModal(m => ({ ...m, open: false }))}>Cancel</button>

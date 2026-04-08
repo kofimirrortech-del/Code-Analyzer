@@ -86,6 +86,16 @@ export async function initDb() {
     id SERIAL PRIMARY KEY, date TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', created_at TIMESTAMP DEFAULT NOW()
   )`);
 
+  /* ── Add recorded_by columns to daily tables (safe on existing DBs) ── */
+  await query(`ALTER TABLE store_items ADD COLUMN IF NOT EXISTS recorded_by TEXT DEFAULT ''`);
+  await query(`ALTER TABLE ingredients ADD COLUMN IF NOT EXISTS recorded_by TEXT DEFAULT ''`);
+  await query(`ALTER TABLE ingredients ADD COLUMN IF NOT EXISTS low_stock_threshold NUMERIC(10,2) DEFAULT 0`);
+  await query(`ALTER TABLE production_batches ADD COLUMN IF NOT EXISTS recorded_by TEXT DEFAULT ''`);
+  await query(`ALTER TABLE bakery_items ADD COLUMN IF NOT EXISTS recorded_by TEXT DEFAULT ''`);
+  await query(`ALTER TABLE packages ADD COLUMN IF NOT EXISTS recorded_by TEXT DEFAULT ''`);
+  await query(`ALTER TABLE packages ADD COLUMN IF NOT EXISTS low_stock_threshold NUMERIC(10,2) DEFAULT 0`);
+  await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS recorded_by TEXT DEFAULT ''`);
+
   /* ── Inter-dept supply transfers ── */
   await query(`CREATE TABLE IF NOT EXISTS stock_transfers (
     id SERIAL PRIMARY KEY, from_dept TEXT NOT NULL, to_dept TEXT NOT NULL,
