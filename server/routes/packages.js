@@ -37,10 +37,31 @@ router.delete('/types/:typeId', requireAuth, async (req, res) => {
   res.json({ success: true });
 });
 
-/* ── Daily records ── */
+/* ── Daily records (with auto carry-forward on new day) ── */
 router.get('/', requireAuth, async (req, res) => {
   const date = req.query.date || today();
   const { rows } = await query('SELECT * FROM packages WHERE date=$1 ORDER BY created_at ASC', [date]);
+
+  if (rows.length === 0 && date === today()) {
+    const { rows: latest } = await query(
+      `SELECT DISTINCT ON (package_type) package_type, closing_stock, low_stock_threshold
+       FROM packages WHERE date < $1 ORDER BY package_type, date DESC, id DESC`,
+      [date]
+    );
+    if (latest.length > 0) {
+      for (const r of latest) {
+        const opening = parseFloat(r.closing_stock ?? 0);
+        await query(
+          `INSERT INTO packages (package_type,stock,added_stock,supply,closing_stock,low_stock_threshold,date)
+           VALUES ($1,$2,0,0,$2,$3,$4)`,
+          [r.package_type, opening, r.low_stock_threshold ?? 0, date]
+        );
+      }
+      const { rows: newRows } = await query('SELECT * FROM packages WHERE date=$1 ORDER BY created_at ASC', [date]);
+      return res.json(newRows.map(fmt));
+    }
+  }
+
   res.json(rows.map(fmt));
 });
 

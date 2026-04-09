@@ -51,10 +51,31 @@ router.get('/last-closing', requireAuth, async (req, res) => {
   res.json({ closingStock: rows[0] ? parseFloat(rows[0].closing_stock) : 0 });
 });
 
-/* ── Daily records ── */
+/* ── Daily records (with auto carry-forward on new day) ── */
 router.get('/', requireAuth, async (req, res) => {
   const date = req.query.date || today();
   const { rows } = await query('SELECT * FROM store_items WHERE date=$1 ORDER BY created_at ASC', [date]);
+
+  if (rows.length === 0 && date === today()) {
+    const { rows: latest } = await query(
+      `SELECT DISTINCT ON (item_name) item_name, closing_stock, low_stock_threshold, unit, supplier
+       FROM store_items WHERE date < $1 ORDER BY item_name, date DESC, id DESC`,
+      [date]
+    );
+    if (latest.length > 0) {
+      for (const r of latest) {
+        const opening = parseFloat(r.closing_stock ?? 0);
+        await query(
+          `INSERT INTO store_items (item_name,quantity,added_stock,closing_stock,low_stock_threshold,unit,supplier,date)
+           VALUES ($1,$2,0,$2,$3,$4,$5,$6)`,
+          [r.item_name, opening, r.low_stock_threshold ?? 0, r.unit ?? 'units', r.supplier ?? '', date]
+        );
+      }
+      const { rows: newRows } = await query('SELECT * FROM store_items WHERE date=$1 ORDER BY created_at ASC', [date]);
+      return res.json(newRows.map(fmt));
+    }
+  }
+
   res.json(rows.map(fmt));
 });
 
