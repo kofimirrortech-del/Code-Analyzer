@@ -4,7 +4,7 @@ import { api } from '../api.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { canEdit } from '../utils/permissions.js';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, X, Tag, ArrowRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Tag, ArrowRight, PackageCheck } from 'lucide-react';
 
 const today = () => new Date().toISOString().split('T')[0];
 const EMPTY = (username = '') => ({ product: '', quantityProduced: 0, unit: 'units', baker: username, note: '' });
@@ -21,6 +21,8 @@ export default function Production() {
 
   const { data: products = [] } = useQuery({ queryKey: ['production-products'], queryFn: () => api.get('/production/products') });
   const { data = [], isLoading } = useQuery({ queryKey: ['production', today()], queryFn: () => api.get(`/production?date=${today()}`) });
+  const { data: receivedRaw = [] } = useQuery({ queryKey: ['transfers-to-production', today()], queryFn: () => api.get(`/transfers?date=${today()}&dept=production`) });
+  const received = receivedRaw.filter(r => r.toDept === 'production');
 
   const addProduct = useMutation({
     mutationFn: name => api.post('/production/products', { name }),
@@ -44,7 +46,7 @@ export default function Production() {
   });
   const supply = useMutation({
     mutationFn: d => api.post('/transfers', d),
-    onSuccess: () => { qc.invalidateQueries(['production']); setSupplyOpen(false); setSupplyForm({ itemName:'', quantity:'', unit:'units', note:'' }); toast.success('Supplied to Bakery!'); },
+    onSuccess: () => { qc.invalidateQueries(['production']); qc.invalidateQueries(['transfers-to-production']); setSupplyOpen(false); setSupplyForm({ itemName:'', quantity:'', unit:'units', note:'' }); toast.success('Supplied to Bakery!'); },
     onError: e => toast.error(e.message || 'Transfer failed'),
   });
 
@@ -117,6 +119,34 @@ export default function Production() {
             </table>
           </div>
         )}
+      </div>
+
+      <div className="card" style={{ marginTop: '1.5rem' }}>
+        <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <PackageCheck size={16} color="#8b5cf6" />
+          <span style={{ fontWeight: 600, color: '#fff', fontSize: '0.875rem' }}>Received from Ingredients</span>
+          <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#64748b' }}>{today()}</span>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead><tr>{['#', 'Item Name', 'Qty', 'Unit', 'Note', 'Transferred By', 'Time'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+            <tbody>
+              {received.length === 0 ? (
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#4a5568', padding: '2rem' }}>No items received from Ingredients today.</td></tr>
+              ) : received.map((r, i) => (
+                <tr key={r.id}>
+                  <td style={{ color: '#4a5568' }}>{i + 1}</td>
+                  <td style={{ color: '#fff', fontWeight: 500 }}>{r.itemName}</td>
+                  <td><span className="badge badge-amber">{r.quantity}</span></td>
+                  <td style={{ color: '#64748b' }}>{r.unit}</td>
+                  <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{r.note || '—'}</td>
+                  <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{r.transferredBy}</td>
+                  <td style={{ color: '#64748b', fontSize: '0.8rem' }}>{r.createdAt ? new Date(r.createdAt).toLocaleTimeString() : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {supplyOpen && (

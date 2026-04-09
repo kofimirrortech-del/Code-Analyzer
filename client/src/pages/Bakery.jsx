@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { canEdit } from '../utils/permissions.js';
-import { Plus, Trash2, Edit2, Save, X, ChefHat, ArrowRight } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, X, ChefHat, ArrowRight, PackageCheck } from 'lucide-react';
 
 const today = () => new Date().toISOString().split('T')[0];
 
@@ -45,6 +45,8 @@ export default function Bakery() {
 
   const { data: items = [], isLoading } = useQuery({ queryKey:['bakery',date], queryFn:()=>api.get(`/bakery?date=${date}`) });
   const { data: names = [] } = useQuery({ queryKey:['bakery-names'], queryFn:()=>api.get('/bakery/names') });
+  const { data: receivedRaw = [] } = useQuery({ queryKey:['transfers-to-bakery',date], queryFn:()=>api.get(`/transfers?date=${date}&dept=bakery`) });
+  const received = receivedRaw.filter(r => r.toDept === 'bakery');
 
   const [addName, setAddName] = useState(''); const [editId, setEditId] = useState(null); const [editRow, setEditRow] = useState({});
   const [showAdd, setShowAdd] = useState(false); const [newRow, setNewRow] = useState({ itemName:'', quantity:'', unit:'units', lowStockThreshold:'0', note:'' });
@@ -55,7 +57,7 @@ export default function Bakery() {
   const createMut = useMutation({ mutationFn:d=>api.post('/bakery',d), onSuccess:()=>{ qc.invalidateQueries(['bakery',date]); setShowAdd(false); setNewRow({itemName:'',quantity:'',unit:'units',lowStockThreshold:'0',note:''}); } });
   const updateMut = useMutation({ mutationFn:({id,...d})=>api.put(`/bakery/${id}`,d), onSuccess:()=>{ qc.invalidateQueries(['bakery',date]); setEditId(null); } });
   const deleteMut = useMutation({ mutationFn:id=>api.delete(`/bakery/${id}`), onSuccess:()=>qc.invalidateQueries(['bakery',date]) });
-  const transferMut = useMutation({ mutationFn:d=>api.post('/transfers',d), onSuccess:()=>{ qc.invalidateQueries(['bakery',date]); setSupplyDialog(false); } });
+  const transferMut = useMutation({ mutationFn:d=>api.post('/transfers',d), onSuccess:()=>{ qc.invalidateQueries(['bakery',date]); qc.invalidateQueries(['transfers-to-bakery',date]); setSupplyDialog(false); } });
 
   const handleAddName = () => { if(addName.trim()) { createNameMut.mutate({name:addName.trim()}); setAddName(''); } };
   const startEdit = (r) => { setEditId(r.id); setEditRow({itemName:r.itemName, quantity:r.quantity, unit:r.unit, lowStockThreshold:r.lowStockThreshold, note:r.note||''}); };
@@ -145,6 +147,34 @@ export default function Bakery() {
           </table>
         </div>
       </div>
+      <div className="card" style={{ marginTop: '1.5rem' }}>
+        <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <PackageCheck size={16} color="#3b82f6" />
+          <span style={{ fontWeight: 600, color: '#fff', fontSize: '0.875rem' }}>Received from Production</span>
+          <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#64748b' }}>{date}</span>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead><tr>{['#', 'Item Name', 'Qty', 'Unit', 'Note', 'Transferred By', 'Time'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+            <tbody>
+              {received.length === 0 ? (
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: '#4a5568', padding: '2rem' }}>No items received from Production today.</td></tr>
+              ) : received.map((r, i) => (
+                <tr key={r.id}>
+                  <td style={{ color: '#4a5568' }}>{i + 1}</td>
+                  <td style={{ color: '#fff', fontWeight: 500 }}>{r.itemName}</td>
+                  <td><span className="badge badge-amber">{r.quantity}</span></td>
+                  <td style={{ color: '#64748b' }}>{r.unit}</td>
+                  <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{r.note || '—'}</td>
+                  <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{r.transferredBy}</td>
+                  <td style={{ color: '#64748b', fontSize: '0.8rem' }}>{r.createdAt ? new Date(r.createdAt).toLocaleTimeString() : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {supplyDialog && <SupplyDialog names={names} onClose={()=>setSupplyDialog(false)} onSubmit={handleSupply}/>}
     </div>
   );
