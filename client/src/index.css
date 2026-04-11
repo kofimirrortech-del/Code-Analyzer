@@ -14,6 +14,7 @@ body {
   color: #e2e8f0;
   font-family: system-ui, -apple-system, sans-serif;
   margin: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
 .glass {
@@ -189,7 +190,8 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 0.75rem;
-  padding: 1.5rem;
+  padding: 1.25rem;
+  transition: border-color 0.15s;
 }
 
 .page-header {
@@ -198,19 +200,20 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   justify-content: space-between;
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.875rem;
 }
 
 .page-title {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.375rem;
+  font-weight: 800;
   color: #fff;
+  letter-spacing: -0.015em;
 }
 
 .card {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 0.75rem;
+  border-radius: 0.875rem;
   overflow: hidden;
 }
 
@@ -235,3 +238,96 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .font-bold { font-weight: 700; }
 .font-semibold { font-weight: 600; }
 .font-medium { font-weight: 500; }
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE — MOBILE  (< 640px)
+═══════════════════════════════════════════ */
+@media (max-width: 639px) {
+  #main-content {
+    padding: 0.875rem !important;
+    padding-top: calc(56px + 0.875rem) !important;
+  }
+
+  .page-title { font-size: 1.125rem; }
+  .page-header { margin-bottom: 1rem; }
+
+  /* Stack page-header buttons below title */
+  .page-header > *:last-child { width: 100%; }
+  .page-header > *:last-child .btn { width: 100%; justify-content: center; }
+
+  /* Tighter table cells */
+  th { padding: 0.5rem 0.625rem; font-size: 0.65rem; }
+  td { padding: 0.625rem 0.625rem; font-size: 0.8rem; }
+  .table-wrap, .table-container { max-height: 55vh; }
+
+  /* Modals fill screen */
+  .modal-container { padding: 1.125rem; border-radius: 0.75rem; }
+  .overlay { padding: 0.5rem; align-items: flex-end; }
+  .modal-container { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+  /* Bigger touch targets */
+  .btn { padding: 0.625rem 0.875rem; min-height: 40px; }
+  .input { padding: 0.75rem 0.875rem; }
+
+  /* Cards */
+  .card { border-radius: 0.625rem; }
+  .stat-card { padding: 1rem; border-radius: 0.625rem; }
+
+  /* Filters row wraps */
+  .filter-row { flex-wrap: wrap; }
+  .filter-row .btn { flex: 1; justify-content: center; }
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE — TABLET  (640px – 1023px)
+═══════════════════════════════════════════ */
+@media (min-width: 640px) and (max-width: 1023px) {
+  #main-content {
+    padding: 1.125rem !important;
+    padding-top: calc(56px + 1.125rem) !important;
+  }
+  .page-title { font-size: 1.25rem; }
+}
+
+/* ═══════════════════════════════════════════
+   DESKTOP BOLD VIEW  (≥ 1024px)
+═══════════════════════════════════════════ */
+@media (min-width: 1024px) {
+  #sidebar-wrapper { display: flex !important; }
+  #mobile-topbar   { display: none !important; }
+  #main-content    { padding: 1.75rem !important; padding-top: 1.75rem !important; }
+
+  /* Bolder, tighter page title */
+  .page-title {
+    font-size: 1.875rem;
+    font-weight: 900;
+    letter-spacing: -0.025em;
+  }
+
+  /* Deeper card presence */
+  .card {
+    border-radius: 1rem;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.2);
+    border-color: rgba(255,255,255,0.09);
+  }
+  .stat-card {
+    padding: 1.5rem;
+    border-radius: 1rem;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+  }
+
+  /* Crisper table header */
+  th {
+    padding: 0.875rem 1.125rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.07em;
+    background: #0d0d1c;
+  }
+  td { padding: 1rem 1.125rem; }
+
+  /* Heavier modal headings */
+  .modal-title { font-size: 1.25rem; font-weight: 800; }
+
+  /* Larger badge text */
+  .badge { font-size: 0.72rem; padding: 0.25rem 0.7rem; }
+}

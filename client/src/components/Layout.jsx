@@ -368,7 +368,6 @@ export default function Layout({ children }) {
         @media (min-width: 1024px) {
           #sidebar-wrapper { display: flex !important; }
           #mobile-topbar   { display: none !important; }
-          #main-content    { padding-top: 1.5rem !important; }
         }
       `}</style>
     </div>
