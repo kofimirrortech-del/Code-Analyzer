@@ -20,6 +20,8 @@ import usersRouter from './routes/users.js';
 import transfersRouter from './routes/transfers.js';
 import purchaseOrdersRouter from './routes/purchase-orders.js';
 import analyticsRouter from './routes/analytics.js';
+import requestsRouter from './routes/requests.js';
+import notificationsRouter from './routes/notifications.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -47,6 +49,8 @@ app.use('/api/users', usersRouter);
 app.use('/api/transfers', transfersRouter);
 app.use('/api/purchase-orders', purchaseOrdersRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/requests', requestsRouter);
+app.use('/api/notifications', notificationsRouter);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 

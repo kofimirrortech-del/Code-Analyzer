@@ -4,6 +4,15 @@
 
 A full-featured bakery inventory management ERP system. Deployable on Render free tier.
 
+## New Features (Latest)
+
+- **Summary Report** — `/summary-report` — dashboard cards for every dept (items, stock totals, low-stock alerts) with drill-down links. Visible to all roles.
+- **Item Requests system** — non-admin dept users can request items from other departments via a sidebar "Request Item" button. Requests go to admin for approval/rejection; requesting dept is notified.
+- **In-app Notifications** — bell icon in sidebar shows unread badge (polls every 30s). Triggered by: low stock, new request, request approved/rejected.
+- **Notification Settings (admin)** — within the Requests page admin can toggle which events generate notifications, and which departments are allowed to make requests.
+- **Sidebar Reorder (admin)** — "Reorder Sidebar" button lets admin drag nav items up/down; order saved to DB, applied for all users.
+- **WhatsApp Share** — WA share buttons on Purchase Orders and Requests tables — formats the record into a WhatsApp-ready message link.
+
 ## Stack
 
 - **Backend**: Express.js (Node.js, plain JavaScript, ES modules)

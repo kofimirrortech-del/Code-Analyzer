@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.js';
-import { Plus, Edit2, Trash2, CheckCircle, Clock, Package, XCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, CheckCircle, Clock, Package, XCircle, Share2 } from 'lucide-react';
+
+function waLinkPO(po) {
+  const text = `*Purchase Order*\n\nItem: ${po.itemName}\nDepartment: ${po.department}\nQty Needed: ${po.quantityNeeded} ${po.unit}\nPriority: ${po.priority}\nSupplier: ${po.supplier || 'N/A'}\nStatus: ${po.status}\nNotes: ${po.notes || 'N/A'}\nDate: ${po.date}`;
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+}
 
 const DEPTS = ['store','ingredients','production','bakery','packaging','dispatch'];
 const STATUS_META = {
@@ -119,6 +124,7 @@ export default function PurchaseOrders() {
                     <td>
                       <div style={{ display:'flex', gap:'0.5rem', justifyContent:'flex-end' }}>
                         <button className="btn btn-secondary" style={{ padding:'0.35rem 0.6rem' }} onClick={()=>setEditModal(po)}><Edit2 size={13}/></button>
+                        <a href={waLinkPO(po)} target="_blank" rel="noreferrer" className="btn btn-secondary" style={{ padding:'0.35rem 0.6rem', textDecoration:'none', display:'inline-flex', alignItems:'center', gap:'0.3rem' }}><Share2 size={13}/> WA</a>
                         <button className="btn btn-danger" style={{ padding:'0.35rem 0.6rem' }} onClick={()=>{ if(confirm('Delete this purchase order?')) deleteMut.mutate(po.id); }}><Trash2 size={13}/></button>
                       </div>
                     </td>

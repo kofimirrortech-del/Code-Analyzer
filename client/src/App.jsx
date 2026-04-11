@@ -20,6 +20,8 @@ import TodaysProduction from './pages/TodaysProduction.jsx';
 import Users from './pages/Users.jsx';
 import Analytics from './pages/Analytics.jsx';
 import PurchaseOrders from './pages/PurchaseOrders.jsx';
+import SummaryReport from './pages/SummaryReport.jsx';
+import Requests from './pages/Requests.jsx';
 
 function Protected({ component: Component, section, adminOnly }) {
   const { user, isLoading } = useAuth();
@@ -48,6 +50,8 @@ export default function App() {
         <Route path="/dispatch"          component={() => <Protected component={Dispatch}         section="dispatch" />} />
         <Route path="/todays-order"      component={() => <Protected component={TodaysOrder}      section="todays-order" />} />
         <Route path="/todays-production" component={() => <Protected component={TodaysProduction} section="todays-production" />} />
+        <Route path="/summary-report"    component={() => <Protected component={SummaryReport} />} />
+        <Route path="/requests"          component={() => <Protected component={Requests} />} />
         <Route path="/analytics"         component={() => <Protected component={Analytics}        adminOnly />} />
         <Route path="/purchase-orders"   component={() => <Protected component={PurchaseOrders}   adminOnly />} />
         <Route path="/users"             component={() => <Protected component={Users}            adminOnly />} />

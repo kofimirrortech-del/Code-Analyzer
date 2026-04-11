@@ -1,15 +1,25 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '../api.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { canView } from '../utils/permissions.js';
+import toast from 'react-hot-toast';
 import {
   LayoutGrid, Package, Wheat, Factory, Archive, Truck,
   History as HistoryIcon, Settings, LogOut, Menu, X, ChefHat,
-  ClipboardList, ClipboardCheck, BarChart2, ShoppingBag, Users as UsersIcon
+  ClipboardList, ClipboardCheck, BarChart2, ShoppingBag, Users as UsersIcon,
+  Bell, ChevronUp, ChevronDown, Send, FileBarChart2, Inbox, CheckCircle, AlertTriangle,
 } from 'lucide-react';
+
+const DEPT_FROM_ROLE = {
+  STORE: 'store', INGREDIENT: 'ingredients', PRODUCTION: 'production',
+  BAKERY: 'bakery', PACKAGE: 'packaging', DISPATCH: 'dispatch',
+};
 
 const ALL_NAV = [
   { path: '/',                  label: 'Dashboard',          icon: LayoutGrid,    section: null,               adminOnly: true },
+  { path: '/summary-report',    label: 'Summary Report',     icon: FileBarChart2, section: null },
   { path: '/store',             label: 'Store',              icon: Package,       section: 'store' },
   { path: '/ingredients',       label: 'Ingredients',        icon: Wheat,         section: 'ingredients' },
   { path: '/production',        label: 'Production',         icon: Factory,       section: 'production' },
@@ -18,6 +28,7 @@ const ALL_NAV = [
   { path: '/dispatch',          label: 'Dispatch',           icon: Truck,         section: 'dispatch' },
   { path: '/todays-order',      label: "Today's Order",      icon: ClipboardList, section: 'todays-order' },
   { path: '/todays-production', label: "Today's Production", icon: ClipboardCheck,section: 'todays-production' },
+  { path: '/requests',          label: 'Requests',           icon: Inbox,         section: null },
   { path: '/analytics',         label: 'Analytics',          icon: BarChart2,     section: null, adminOnly: true },
   { path: '/purchase-orders',   label: 'Purchase Orders',    icon: ShoppingBag,   section: null, adminOnly: true },
   { path: '/users',             label: 'Users',              icon: UsersIcon,     section: null, adminOnly: true },
@@ -25,15 +36,164 @@ const ALL_NAV = [
   { path: '/settings',          label: 'Settings',           icon: Settings,      section: null, adminOnly: true },
 ];
 
+const NOTIF_ICONS = { low_stock: AlertTriangle, request: Inbox, request_approved: CheckCircle, request_rejected: X };
+const NOTIF_COLORS = { low_stock: '#ef4444', request: '#f59e0b', request_approved: '#10b981', request_rejected: '#64748b' };
+const DEPTS = ['store','ingredients','production','bakery','packaging','dispatch'];
+
+function RequestModal({ user, onClose }) {
+  const qc = useQueryClient();
+  const fromDept = DEPT_FROM_ROLE[user.role] || 'store';
+  const [form, setForm] = useState({ fromDept, toDept: DEPTS.find(d => d !== fromDept) || 'store', itemName: '', quantity: '', unit: 'units', note: '' });
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const submit = useMutation({
+    mutationFn: d => api.post('/requests', d),
+    onSuccess: () => { qc.invalidateQueries(['requests']); qc.invalidateQueries(['notif-count']); toast.success('Request sent to admin for approval!'); onClose(); },
+    onError: e => toast.error(e.message || 'Failed to send request'),
+  });
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal-container" style={{ width: 440 }} onClick={e => e.stopPropagation()}>
+        <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Send size={18} color="#f59e0b" /> Request Item
+        </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div>
+              <label className="label">Your Department</label>
+              <input className="input" value={form.fromDept} readOnly style={{ background: 'rgba(100,116,139,0.1)', color: '#94a3b8' }} />
+            </div>
+            <div>
+              <label className="label">Request From</label>
+              <select className="input" value={form.toDept} onChange={e => set('toDept', e.target.value)}>
+                {DEPTS.filter(d => d !== form.fromDept).map(d => (
+                  <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="label">Item Name</label>
+            <input className="input" value={form.itemName} onChange={e => set('itemName', e.target.value)} placeholder="Item name" />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem' }}>
+            <div>
+              <label className="label">Quantity</label>
+              <input className="input" type="number" min="0" step="0.01" value={form.quantity} onChange={e => set('quantity', e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <label className="label">Unit</label>
+              <input className="input" value={form.unit} onChange={e => set('unit', e.target.value)} placeholder="kg, units..." />
+            </div>
+          </div>
+          <div>
+            <label className="label">Reason / Note (optional)</label>
+            <textarea className="input" rows={2} value={form.note} onChange={e => set('note', e.target.value)} placeholder="Reason for request..." style={{ resize: 'vertical' }} />
+          </div>
+        </div>
+        <div style={{ padding: '0.6rem 0.9rem', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: 8, fontSize: '0.8rem', color: '#f59e0b', marginTop: '0.75rem' }}>
+          This request goes to admin for approval before any items are transferred.
+        </div>
+        <div className="modal-actions">
+          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={submit.isPending || !form.itemName || !form.quantity}
+            onClick={() => submit.mutate(form)}>
+            {submit.isPending ? 'Sending...' : 'Send Request'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReorderModal({ allItems, onClose, onSave }) {
+  const [order, setOrder] = useState(allItems.map(i => i.path));
+  const move = (idx, dir) => {
+    const next = [...order];
+    const target = idx + dir;
+    if (target < 0 || target >= next.length) return;
+    [next[idx], next[target]] = [next[target], next[idx]];
+    setOrder(next);
+  };
+  const ordered = order.map(p => allItems.find(i => i.path === p)).filter(Boolean);
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal-container" style={{ width: 380 }} onClick={e => e.stopPropagation()}>
+        <h3 className="modal-title">Reorder Sidebar</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: 420, overflowY: 'auto', marginBottom: '0.75rem' }}>
+          {ordered.map((item, i) => (
+            <div key={item.path} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <item.icon size={14} color="#64748b" />
+              <span style={{ flex: 1, fontSize: '0.825rem', color: '#cbd5e1' }}>{item.label}</span>
+              <button onClick={() => move(i, -1)} disabled={i === 0} style={{ background: 'none', border: 'none', color: i === 0 ? '#2d3748' : '#64748b', cursor: i === 0 ? 'default' : 'pointer', padding: '0.2rem' }}><ChevronUp size={14} /></button>
+              <button onClick={() => move(i, 1)} disabled={i === ordered.length - 1} style={{ background: 'none', border: 'none', color: i === ordered.length - 1 ? '#2d3748' : '#64748b', cursor: i === ordered.length - 1 ? 'default' : 'pointer', padding: '0.2rem' }}><ChevronDown size={14} /></button>
+            </div>
+          ))}
+        </div>
+        <div className="modal-actions">
+          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={() => onSave(order)}>Save Order</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Sidebar({ user, onClose }) {
   const [location] = useLocation();
   const { logout, isLoggingOut } = useAuth();
+  const qc = useQueryClient();
+  const isAdmin = user.role === 'ADMIN';
+  const userDept = DEPT_FROM_ROLE[user.role] || '';
 
-  const items = ALL_NAV.filter(n => {
-    if (n.adminOnly) return user.role === 'ADMIN';
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [reorderOpen, setReorderOpen] = useState(false);
+  const [requestOpen, setRequestOpen] = useState(false);
+
+  const { data: unreadData = { count: 0 } } = useQuery({
+    queryKey: ['notif-count'], queryFn: () => api.get('/notifications/unread-count'), refetchInterval: 30000,
+  });
+  const { data: notifs = [] } = useQuery({
+    queryKey: ['notifications'], queryFn: () => api.get('/notifications'),
+    enabled: notifOpen, refetchInterval: notifOpen ? 30000 : false,
+  });
+  const { data: sidebarOrder } = useQuery({
+    queryKey: ['sidebar-order'], queryFn: () => api.get('/notifications/sidebar-order'),
+  });
+  const { data: requestDepts = [] } = useQuery({
+    queryKey: ['request-depts'], queryFn: () => api.get('/notifications/request-depts'),
+  });
+
+  const markAllRead = useMutation({
+    mutationFn: () => api.put('/notifications/read-all', {}),
+    onSuccess: () => { qc.invalidateQueries(['notif-count']); qc.invalidateQueries(['notifications']); },
+  });
+  const saveOrder = useMutation({
+    mutationFn: order => api.put('/notifications/sidebar-order', { order }),
+    onSuccess: () => { qc.invalidateQueries(['sidebar-order']); setReorderOpen(false); toast.success('Sidebar order saved!'); },
+  });
+
+  const baseItems = ALL_NAV.filter(n => {
+    if (n.adminOnly) return isAdmin;
     if (n.section) return canView(user, n.section);
     return true;
   });
+
+  const items = sidebarOrder
+    ? [...baseItems].sort((a, b) => {
+        const ai = sidebarOrder.indexOf(a.path);
+        const bi = sidebarOrder.indexOf(b.path);
+        if (ai === -1 && bi === -1) return 0;
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+      })
+    : baseItems;
+
+  const canRequest = !isAdmin && requestDepts.includes(userDept);
+  const unread = unreadData.count;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -52,12 +212,45 @@ function Sidebar({ user, onClose }) {
           <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#f59e0b', fontSize: '0.8rem', flexShrink: 0 }}>
             {user.username[0].toUpperCase()}
           </div>
-          <div style={{ overflow: 'hidden' }}>
+          <div style={{ overflow: 'hidden', flex: 1 }}>
             <div style={{ fontSize: '0.8rem', fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.username}</div>
             <div style={{ fontSize: '0.65rem', color: '#64748b' }}>{user.role}</div>
           </div>
+          <button onClick={() => setNotifOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', position: 'relative', padding: '0.25rem', color: unread > 0 ? '#f59e0b' : '#64748b', flexShrink: 0 }}>
+            <Bell size={16} />
+            {unread > 0 && (
+              <span style={{ position: 'absolute', top: -1, right: -1, background: '#ef4444', borderRadius: '50%', width: 14, height: 14, fontSize: '0.6rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700 }}>
+                {unread > 9 ? '9+' : unread}
+              </span>
+            )}
+          </button>
         </div>
       </div>
+
+      {notifOpen && (
+        <div style={{ margin: '0 1rem 0.75rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ padding: '0.625rem 0.875rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#fff' }}>Notifications</span>
+            <button onClick={() => markAllRead.mutate()} style={{ fontSize: '0.65rem', color: '#64748b', background: 'none', border: 'none', cursor: 'pointer' }}>Mark all read</button>
+          </div>
+          <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+            {notifs.length === 0 && <div style={{ padding: '1rem', textAlign: 'center', fontSize: '0.75rem', color: '#4a5568' }}>No notifications</div>}
+            {notifs.slice(0, 12).map(n => {
+              const Icon = NOTIF_ICONS[n.type] || Bell;
+              const color = NOTIF_COLORS[n.type] || '#64748b';
+              return (
+                <div key={n.id} style={{ padding: '0.625rem 0.875rem', borderBottom: '1px solid rgba(255,255,255,0.04)', background: n.isRead ? 'transparent' : 'rgba(245,158,11,0.04)', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                  <Icon size={13} color={color} style={{ marginTop: 2, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.75rem', color: '#fff', fontWeight: n.isRead ? 400 : 600 }}>{n.title}</div>
+                    <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: 2, lineHeight: 1.4 }}>{n.message}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <nav style={{ flex: 1, padding: '0 1rem', overflowY: 'auto' }}>
         {items.map(item => {
@@ -80,11 +273,30 @@ function Sidebar({ user, onClose }) {
         })}
       </nav>
 
-      <div style={{ padding: '0.75rem 1rem 1rem' }}>
+      <div style={{ padding: '0.5rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+        {canRequest && (
+          <button onClick={() => setRequestOpen(true)} className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem', gap: '0.4rem' }}>
+            <Send size={14} /> Request Item
+          </button>
+        )}
+        {isAdmin && (
+          <button onClick={() => setReorderOpen(true)} className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem', gap: '0.4rem' }}>
+            <ChevronUp size={14} /><ChevronDown size={14} style={{ marginLeft: -6 }} /> Reorder Sidebar
+          </button>
+        )}
         <button onClick={() => logout()} disabled={isLoggingOut} className="btn btn-danger" style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem' }}>
           <LogOut size={15} />{isLoggingOut ? 'Logging out...' : 'Logout'}
         </button>
       </div>
+
+      {reorderOpen && isAdmin && (
+        <ReorderModal
+          allItems={ALL_NAV}
+          onClose={() => setReorderOpen(false)}
+          onSave={order => saveOrder.mutate(order)}
+        />
+      )}
+      {requestOpen && <RequestModal user={user} onClose={() => setRequestOpen(false)} />}
     </div>
   );
 }

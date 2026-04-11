@@ -113,6 +113,23 @@ export async function initDb() {
   await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS unit TEXT DEFAULT 'units'`);
   await query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS supplier TEXT DEFAULT ''`);
 
+  /* ── Department-to-department item requests ── */
+  await query(`CREATE TABLE IF NOT EXISTS department_requests (
+    id SERIAL PRIMARY KEY, from_dept TEXT NOT NULL, to_dept TEXT NOT NULL,
+    item_name TEXT NOT NULL, quantity NUMERIC(10,2) DEFAULT 0, unit TEXT DEFAULT 'units',
+    note TEXT DEFAULT '', status TEXT DEFAULT 'pending',
+    requested_by TEXT NOT NULL, reviewed_by TEXT DEFAULT '', review_note TEXT DEFAULT '',
+    date TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW()
+  )`);
+
+  /* ── In-app notifications ── */
+  await query(`CREATE TABLE IF NOT EXISTS notifications (
+    id SERIAL PRIMARY KEY, type TEXT NOT NULL, title TEXT NOT NULL,
+    message TEXT NOT NULL, department TEXT DEFAULT '', related_id INTEGER DEFAULT NULL,
+    is_read BOOLEAN DEFAULT false, target_role TEXT DEFAULT 'ADMIN',
+    created_at TIMESTAMP DEFAULT NOW()
+  )`);
+
   /* ── Inter-dept supply transfers ── */
   await query(`CREATE TABLE IF NOT EXISTS stock_transfers (
     id SERIAL PRIMARY KEY, from_dept TEXT NOT NULL, to_dept TEXT NOT NULL,

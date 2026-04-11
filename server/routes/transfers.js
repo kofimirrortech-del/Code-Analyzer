@@ -17,6 +17,14 @@ async function autoCreatePO(itemName, dept, unit, neededQty, username, date) {
       `INSERT INTO purchase_orders (item_name,department,quantity_needed,unit,status,priority,created_by,date) VALUES ($1,$2,$3,$4,'pending','high',$5,$6)`,
       [itemName, dept, neededQty, unit, username, date]
     );
+    const { rows: ns } = await query(`SELECT value FROM settings WHERE key='notification_settings'`);
+    const notifSettings = ns[0] ? JSON.parse(ns[0].value) : { low_stock: true };
+    if (notifSettings.low_stock !== false) {
+      await query(
+        `INSERT INTO notifications (type,title,message,department,target_role) VALUES ('low_stock','Low Stock Alert',$1,$2,'ADMIN')`,
+        [`${itemName} in ${dept} is low — ${neededQty} ${unit} needed`, dept]
+      );
+    }
   }
 }
 
