@@ -40,69 +40,82 @@ const NOTIF_ICONS = { low_stock: AlertTriangle, request: Inbox, request_approved
 const NOTIF_COLORS = { low_stock: '#ef4444', request: '#f59e0b', request_approved: '#10b981', request_rejected: '#64748b' };
 const DEPTS = ['store','ingredients','production','bakery','packaging','dispatch'];
 
-function RequestModal({ user, onClose }) {
+function RequestPanel({ user }) {
   const qc = useQueryClient();
   const fromDept = DEPT_FROM_ROLE[user.role] || 'store';
-  const [form, setForm] = useState({ fromDept, toDept: DEPTS.find(d => d !== fromDept) || 'store', itemName: '', quantity: '', unit: 'units', note: '' });
-  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const defaultTo = DEPTS.find(d => d !== fromDept) || 'store';
+  const [open, setOpen] = useState(false);
+  const [toDept, setToDept] = useState(defaultTo);
+  const [note, setNote] = useState('');
 
   const submit = useMutation({
-    mutationFn: d => api.post('/requests', d),
-    onSuccess: () => { qc.invalidateQueries(['requests']); qc.invalidateQueries(['notif-count']); toast.success('Request sent to admin for approval!'); onClose(); },
+    mutationFn: () => api.post('/requests', { fromDept, toDept, note }),
+    onSuccess: () => {
+      qc.invalidateQueries(['requests']);
+      qc.invalidateQueries(['notif-count']);
+      toast.success('Request sent to admin for approval!');
+      setNote('');
+      setOpen(false);
+    },
     onError: e => toast.error(e.message || 'Failed to send request'),
   });
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal-container" style={{ width: 440 }} onClick={e => e.stopPropagation()}>
-        <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Send size={18} color="#f59e0b" /> Request Item
-        </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+    <div className="card" style={{ marginBottom: '1.25rem', overflow: 'hidden' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '0.875rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.625rem', textAlign: 'left' }}
+      >
+        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Send size={13} color="#f59e0b" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 600, color: '#fff', fontSize: '0.875rem' }}>Request Item from Another Department</div>
+          <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.1rem' }}>Submit a request — admin will review and approve</div>
+        </div>
+        {open ? <ChevronUp size={16} color="#64748b" /> : <ChevronDown size={16} color="#64748b" />}
+      </button>
+
+      {open && (
+        <div style={{ padding: '0 1.25rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             <div>
               <label className="label">Your Department</label>
-              <input className="input" value={form.fromDept} readOnly style={{ background: 'rgba(100,116,139,0.1)', color: '#94a3b8' }} />
+              <input className="input" value={fromDept.charAt(0).toUpperCase() + fromDept.slice(1)} readOnly style={{ background: 'rgba(100,116,139,0.08)', color: '#64748b' }} />
             </div>
             <div>
               <label className="label">Request From</label>
-              <select className="input" value={form.toDept} onChange={e => set('toDept', e.target.value)}>
-                {DEPTS.filter(d => d !== form.fromDept).map(d => (
+              <select className="input" value={toDept} onChange={e => setToDept(e.target.value)}>
+                {DEPTS.filter(d => d !== fromDept).map(d => (
                   <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
                 ))}
               </select>
             </div>
           </div>
           <div>
-            <label className="label">Item Name</label>
-            <input className="input" value={form.itemName} onChange={e => set('itemName', e.target.value)} placeholder="Item name" />
+            <label className="label">Note — describe what you need</label>
+            <textarea
+              className="input"
+              rows={3}
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              placeholder="e.g. Need 50kg of flour urgently for tomorrow's batch..."
+              style={{ resize: 'vertical' }}
+            />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem' }}>
-            <div>
-              <label className="label">Quantity</label>
-              <input className="input" type="number" min="0" step="0.01" value={form.quantity} onChange={e => set('quantity', e.target.value)} placeholder="0" />
-            </div>
-            <div>
-              <label className="label">Unit</label>
-              <input className="input" value={form.unit} onChange={e => set('unit', e.target.value)} placeholder="kg, units..." />
-            </div>
-          </div>
-          <div>
-            <label className="label">Reason / Note (optional)</label>
-            <textarea className="input" rows={2} value={form.note} onChange={e => set('note', e.target.value)} placeholder="Reason for request..." style={{ resize: 'vertical' }} />
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+            <button className="btn btn-secondary" onClick={() => setOpen(false)}>Cancel</button>
+            <button
+              className="btn btn-primary"
+              disabled={submit.isPending || !note.trim()}
+              onClick={() => submit.mutate()}
+            >
+              <Send size={14} />
+              {submit.isPending ? 'Sending...' : 'Send Request'}
+            </button>
           </div>
         </div>
-        <div style={{ padding: '0.6rem 0.9rem', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: 8, fontSize: '0.8rem', color: '#f59e0b', marginTop: '0.75rem' }}>
-          This request goes to admin for approval before any items are transferred.
-        </div>
-        <div className="modal-actions">
-          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" disabled={submit.isPending || !form.itemName || !form.quantity}
-            onClick={() => submit.mutate(form)}>
-            {submit.isPending ? 'Sending...' : 'Send Request'}
-          </button>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -146,11 +159,9 @@ function Sidebar({ user, onClose }) {
   const { logout, isLoggingOut } = useAuth();
   const qc = useQueryClient();
   const isAdmin = user.role === 'ADMIN';
-  const userDept = DEPT_FROM_ROLE[user.role] || '';
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [reorderOpen, setReorderOpen] = useState(false);
-  const [requestOpen, setRequestOpen] = useState(false);
 
   const { data: unreadData = { count: 0 } } = useQuery({
     queryKey: ['notif-count'], queryFn: () => api.get('/notifications/unread-count'), refetchInterval: 30000,
@@ -162,10 +173,6 @@ function Sidebar({ user, onClose }) {
   const { data: sidebarOrder } = useQuery({
     queryKey: ['sidebar-order'], queryFn: () => api.get('/notifications/sidebar-order'),
   });
-  const { data: requestDepts = [] } = useQuery({
-    queryKey: ['request-depts'], queryFn: () => api.get('/notifications/request-depts'),
-  });
-
   const markAllRead = useMutation({
     mutationFn: () => api.put('/notifications/read-all', {}),
     onSuccess: () => { qc.invalidateQueries(['notif-count']); qc.invalidateQueries(['notifications']); },
@@ -192,7 +199,6 @@ function Sidebar({ user, onClose }) {
       })
     : baseItems;
 
-  const canRequest = !isAdmin && requestDepts.includes(userDept);
   const unread = unreadData.count;
 
   return (
@@ -274,11 +280,6 @@ function Sidebar({ user, onClose }) {
       </nav>
 
       <div style={{ padding: '0.5rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-        {canRequest && (
-          <button onClick={() => setRequestOpen(true)} className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem', gap: '0.4rem' }}>
-            <Send size={14} /> Request Item
-          </button>
-        )}
         {isAdmin && (
           <button onClick={() => setReorderOpen(true)} className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem', gap: '0.4rem' }}>
             <ChevronUp size={14} /><ChevronDown size={14} style={{ marginLeft: -6 }} /> Reorder Sidebar
@@ -296,7 +297,6 @@ function Sidebar({ user, onClose }) {
           onSave={order => saveOrder.mutate(order)}
         />
       )}
-      {requestOpen && <RequestModal user={user} onClose={() => setRequestOpen(false)} />}
     </div>
   );
 }
@@ -304,7 +304,14 @@ function Sidebar({ user, onClose }) {
 export default function Layout({ children }) {
   const { user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { data: requestDepts = [] } = useQuery({
+    queryKey: ['request-depts'], queryFn: () => api.get('/notifications/request-depts'),
+    enabled: !!user,
+  });
   if (!user) return null;
+  const isAdmin = user.role === 'ADMIN';
+  const userDept = DEPT_FROM_ROLE[user.role] || '';
+  const canRequest = !isAdmin && requestDepts.includes(userDept);
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a18' }}>
@@ -330,7 +337,10 @@ export default function Layout({ children }) {
       )}
 
       <main style={{ flex: 1, padding: '1.5rem', paddingTop: 'calc(56px + 1.5rem)', overflowY: 'auto', maxWidth: '100%' }} id="main-content">
-        <div style={{ maxWidth: 1400, margin: '0 auto' }}>{children}</div>
+        <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+          {canRequest && <RequestPanel user={user} />}
+          {children}
+        </div>
       </main>
 
       <style>{`

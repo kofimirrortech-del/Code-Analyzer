@@ -36,18 +36,20 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 router.post('/', requireAuth, async (req, res) => {
-  const { fromDept, toDept, itemName, quantity, unit = 'units', note = '' } = req.body;
-  if (!fromDept || !toDept || !itemName || !quantity)
-    return res.status(400).json({ error: 'fromDept, toDept, itemName, quantity required' });
+  const { fromDept, toDept, note = '' } = req.body;
+  if (!fromDept || !toDept)
+    return res.status(400).json({ error: 'fromDept and toDept are required' });
+  if (!note.trim())
+    return res.status(400).json({ error: 'Please describe what you need in the note' });
   const { rows } = await query(
     `INSERT INTO department_requests (from_dept,to_dept,item_name,quantity,unit,note,requested_by,date)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-    [fromDept, toDept, itemName, parseFloat(quantity), unit, note, req.user.username, today()]
+     VALUES ($1,$2,'See note',0,'—',$3,$4,$5) RETURNING *`,
+    [fromDept, toDept, note.trim(), req.user.username, today()]
   );
   await query(
     `INSERT INTO notifications (type,title,message,department,related_id,target_role) VALUES ($1,$2,$3,$4,$5,'ADMIN')`,
     ['request', 'New Item Request',
-     `${req.user.username} (${fromDept}) requested ${quantity} ${unit} of "${itemName}" from ${toDept}`,
+     `${req.user.username} (${fromDept}) is requesting from ${toDept}: "${note.trim().slice(0, 80)}"`,
      fromDept, rows[0].id]
   );
   res.status(201).json({ id: rows[0].id });

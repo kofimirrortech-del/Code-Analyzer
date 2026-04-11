@@ -10,7 +10,7 @@ const STATUS_COLORS = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4
 const ALL_DEPTS = DEPTS;
 
 function waLink(req) {
-  const text = `*Item Request*\n\nFrom: ${req.fromDept}\nTo: ${req.toDept}\nItem: ${req.itemName}\nQty: ${req.quantity} ${req.unit}\nNote: ${req.note || 'N/A'}\nStatus: ${req.status}\nRequested by: ${req.requestedBy}\nDate: ${req.date}`;
+  const text = `*Item Request*\n\nFrom: ${req.fromDept}\nRequesting from: ${req.toDept}\nDetails: ${req.note || 'N/A'}\nStatus: ${req.status}\nRequested by: ${req.requestedBy}\nDate: ${req.date}`;
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
 
@@ -170,20 +170,18 @@ export default function Requests() {
             <table>
               <thead>
                 <tr>
-                  {['#', 'From', 'Requesting From', 'Item', 'Qty', 'Note', 'Requested By', 'Date', 'Status', 'Actions'].map(h => <th key={h}>{h}</th>)}
+                  {['#', 'From', 'Requesting From', 'Note / Details', 'Requested By', 'Date', 'Status', 'Actions'].map(h => <th key={h}>{h}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {requests.length === 0 ? (
-                  <tr><td colSpan={10} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No requests found.</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No requests found.</td></tr>
                 ) : requests.map((r, i) => (
                   <tr key={r.id}>
                     <td style={{ color: '#4a5568' }}>{i + 1}</td>
                     <td style={{ color: '#fff', fontWeight: 500, textTransform: 'capitalize' }}>{r.fromDept}</td>
                     <td style={{ color: '#94a3b8', textTransform: 'capitalize' }}>{r.toDept}</td>
-                    <td style={{ color: '#fff' }}>{r.itemName}</td>
-                    <td>{r.quantity} {r.unit}</td>
-                    <td style={{ color: '#64748b', fontSize: '0.8rem', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.note || '—'}</td>
+                    <td style={{ color: '#cbd5e1', fontSize: '0.85rem', maxWidth: 260 }}>{r.note || '—'}</td>
                     <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{r.requestedBy}</td>
                     <td style={{ color: '#64748b', fontSize: '0.8rem' }}>{r.date}</td>
                     <td>
