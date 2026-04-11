@@ -151,6 +151,16 @@ export async function initDb() {
     key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TIMESTAMP DEFAULT NOW()
   )`);
 
+  /* ── Push notification subscriptions ── */
+  await query(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id SERIAL PRIMARY KEY,
+    endpoint TEXT UNIQUE NOT NULL,
+    target_role TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    subscription JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+  )`);
+
   /* ── Role default permissions ── */
   const ROLE_DEFAULTS = {
     ADMIN:       null,

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { requireAuth } from '../middleware.js';
+import { sendPush } from '../push.js';
 
 const router = Router();
 const today = () => new Date().toISOString().split('T')[0];
@@ -20,10 +21,12 @@ async function autoCreatePO(itemName, dept, unit, neededQty, username, date) {
     const { rows: ns } = await query(`SELECT value FROM settings WHERE key='notification_settings'`);
     const notifSettings = ns[0] ? JSON.parse(ns[0].value) : { low_stock: true };
     if (notifSettings.low_stock !== false) {
+      const msg = `${itemName} in ${dept} is low — ${neededQty} ${unit} needed`;
       await query(
         `INSERT INTO notifications (type,title,message,department,target_role) VALUES ('low_stock','Low Stock Alert',$1,$2,'ADMIN')`,
-        [`${itemName} in ${dept} is low — ${neededQty} ${unit} needed`, dept]
+        [msg, dept]
       );
+      sendPush('ADMIN', 'Low Stock Alert', msg);
     }
   }
 }

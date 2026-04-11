@@ -4,7 +4,7 @@
   "description": "DEFFIZZY BAKE ERP - Bakery Management System",
   "type": "module",
   "scripts": {
-   "build": "cd client && npm install --include=dev && npm run build",
+    "build": "cd client && npm install --include=dev && npm run build",
     "start": "node server/index.js",
     "dev:server": "node --watch server/index.js",
     "dev": "concurrently \"npm run dev:server\" \"cd client && npm run dev\""
@@ -14,7 +14,8 @@
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "googleapis": "^144.0.0",
-    "pg": "^8.13.3"
+    "pg": "^8.13.3",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "concurrently": "^9.0.0"

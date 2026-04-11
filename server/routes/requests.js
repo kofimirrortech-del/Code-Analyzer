@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { requireAuth } from '../middleware.js';
+import { sendPush } from '../push.js';
 
 const router = Router();
 const today = () => new Date().toISOString().split('T')[0];
@@ -46,12 +47,12 @@ router.post('/', requireAuth, async (req, res) => {
      VALUES ($1,$2,'See note',0,'—',$3,$4,$5) RETURNING *`,
     [fromDept, toDept, note.trim(), req.user.username, today()]
   );
+  const reqMsg = `${req.user.username} (${fromDept}) is requesting from ${toDept}: "${note.trim().slice(0, 80)}"`;
   await query(
     `INSERT INTO notifications (type,title,message,department,related_id,target_role) VALUES ($1,$2,$3,$4,$5,'ADMIN')`,
-    ['request', 'New Item Request',
-     `${req.user.username} (${fromDept}) is requesting from ${toDept}: "${note.trim().slice(0, 80)}"`,
-     fromDept, rows[0].id]
+    ['request', 'New Item Request', reqMsg, fromDept, rows[0].id]
   );
+  sendPush('ADMIN', 'New Item Request', reqMsg, '/requests');
   res.status(201).json({ id: rows[0].id });
 });
 
@@ -67,13 +68,14 @@ router.put('/:id', requireAuth, async (req, res) => {
   if (!rows[0]) return res.status(404).json({ error: 'Not found' });
   const r = rows[0];
   const targetRole = DEPT_TO_ROLE[r.from_dept] || 'ADMIN';
+  const reviewTitle = `Request ${status === 'approved' ? 'Approved' : 'Rejected'}`;
+  const reviewMsg = `Your request for "${r.item_name}" (${r.quantity} ${r.unit}) was ${status}${reviewNote ? ': ' + reviewNote : ''}`;
   await query(
     `INSERT INTO notifications (type,title,message,department,related_id,target_role) VALUES ($1,$2,$3,$4,$5,$6)`,
     [status === 'approved' ? 'request_approved' : 'request_rejected',
-     `Request ${status === 'approved' ? 'Approved' : 'Rejected'}`,
-     `Your request for "${r.item_name}" (${r.quantity} ${r.unit}) was ${status}${reviewNote ? ': ' + reviewNote : ''}`,
-     r.from_dept, r.id, targetRole]
+     reviewTitle, reviewMsg, r.from_dept, r.id, targetRole]
   );
+  sendPush(targetRole, reviewTitle, reviewMsg, '/requests');
   res.json({ success: true });
 });
 

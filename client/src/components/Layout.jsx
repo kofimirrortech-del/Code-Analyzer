@@ -9,8 +9,14 @@ import {
   LayoutGrid, Package, Wheat, Factory, Archive, Truck,
   History as HistoryIcon, Settings, LogOut, Menu, X, ChefHat,
   ClipboardList, ClipboardCheck, BarChart2, ShoppingBag, Users as UsersIcon,
-  Bell, ChevronUp, ChevronDown, Send, FileBarChart2, Inbox, CheckCircle, AlertTriangle,
+  Bell, BellOff, ChevronUp, ChevronDown, Send, FileBarChart2, Inbox, CheckCircle, AlertTriangle,
 } from 'lucide-react';
+
+function urlB64ToUint8(b64) {
+  const pad = '='.repeat((4 - b64.length % 4) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
 
 const DEPT_FROM_ROLE = {
   STORE: 'store', INGREDIENT: 'ingredients', PRODUCTION: 'production',
@@ -162,6 +168,46 @@ function Sidebar({ user, onClose }) {
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [reorderOpen, setReorderOpen] = useState(false);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const pushSupported = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window;
+
+  useEffect(() => {
+    if (!pushSupported) return;
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.ready.then(reg => reg.pushManager.getSubscription()).then(sub => {
+      setPushSubscribed(!!sub);
+    }).catch(() => {});
+  }, [pushSupported]);
+
+  async function togglePush() {
+    if (!pushSupported) return toast.error('Push not supported in this browser');
+    setPushLoading(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if (pushSubscribed) {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          await api.post('/push/unsubscribe', { endpoint: sub.endpoint });
+          await sub.unsubscribe();
+        }
+        setPushSubscribed(false);
+        toast.success('Device notifications disabled');
+      } else {
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') { toast.error('Permission denied'); return; }
+        const { publicKey } = await api.get('/push/vapid-key');
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(publicKey) });
+        await api.post('/push/subscribe', { subscription: sub.toJSON() });
+        setPushSubscribed(true);
+        toast.success('Device notifications enabled!');
+      }
+    } catch (e) {
+      toast.error(e.message || 'Failed to toggle notifications');
+    } finally {
+      setPushLoading(false);
+    }
+  }
 
   const { data: unreadData = { count: 0 } } = useQuery({
     queryKey: ['notif-count'], queryFn: () => api.get('/notifications/unread-count'), refetchInterval: 30000,
@@ -283,6 +329,17 @@ function Sidebar({ user, onClose }) {
         {isAdmin && (
           <button onClick={() => setReorderOpen(true)} className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem', gap: '0.4rem' }}>
             <ChevronUp size={14} /><ChevronDown size={14} style={{ marginLeft: -6 }} /> Reorder Sidebar
+          </button>
+        )}
+        {pushSupported && (
+          <button
+            onClick={togglePush}
+            disabled={pushLoading}
+            className="btn btn-secondary"
+            style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem', gap: '0.4rem', color: pushSubscribed ? '#10b981' : '#94a3b8', borderColor: pushSubscribed ? 'rgba(16,185,129,0.3)' : undefined }}
+          >
+            {pushSubscribed ? <Bell size={14} /> : <BellOff size={14} />}
+            {pushLoading ? 'Working...' : pushSubscribed ? 'Device Alerts: On' : 'Enable Device Alerts'}
           </button>
         )}
         <button onClick={() => logout()} disabled={isLoggingOut} className="btn btn-danger" style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem' }}>

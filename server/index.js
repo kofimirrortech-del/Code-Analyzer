@@ -22,6 +22,8 @@ import purchaseOrdersRouter from './routes/purchase-orders.js';
 import analyticsRouter from './routes/analytics.js';
 import requestsRouter from './routes/requests.js';
 import notificationsRouter from './routes/notifications.js';
+import pushRouter from './routes/push.js';
+import { initVapid } from './push.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -51,6 +53,7 @@ app.use('/api/purchase-orders', purchaseOrdersRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/requests', requestsRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/push', pushRouter);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
@@ -61,5 +64,6 @@ if (isProd) {
 }
 
 initDb()
+  .then(() => initVapid())
   .then(() => app.listen(PORT, () => console.log(`Server running on port ${PORT}`)))
   .catch(err => { console.error('Failed to initialize database:', err); process.exit(1); });
