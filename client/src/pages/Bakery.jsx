@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { canEdit } from '../utils/permissions.js';
-import { Plus, Trash2, Edit2, Save, X, ChefHat, ArrowRight, PackageCheck } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, X, ChefHat, ArrowRight, PackageCheck, Tag, ChevronDown, ChevronUp } from 'lucide-react';
 
 const today = () => new Date().toISOString().split('T')[0];
 
@@ -51,6 +51,7 @@ export default function Bakery() {
   const [addName, setAddName] = useState(''); const [editId, setEditId] = useState(null); const [editRow, setEditRow] = useState({});
   const [showAdd, setShowAdd] = useState(false); const [newRow, setNewRow] = useState({ itemName:'', quantity:'', unit:'units', lowStockThreshold:'0', note:'' });
   const [supplyDialog, setSupplyDialog] = useState(false);
+  const [namesOpen, setNamesOpen] = useState(false);
 
   const createNameMut = useMutation({ mutationFn: d=>api.post('/bakery/names',d), onSuccess:()=>qc.invalidateQueries(['bakery-names']) });
   const deleteNameMut = useMutation({ mutationFn: id=>api.delete(`/bakery/names/${id}`), onSuccess:()=>qc.invalidateQueries(['bakery-names']) });
@@ -86,21 +87,27 @@ export default function Bakery() {
 
       {editable && (
         <div className="card" style={{ marginBottom:'1rem' }}>
-          <div style={{ padding:'1rem 1.5rem', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+          <button onClick={() => setNamesOpen(o => !o)} style={{ width:'100%', background:'none', border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.875rem 1.25rem', textAlign:'left' }}>
+            <Tag size={15} color="#ec4899" />
             <span style={{ fontWeight:600, color:'#fff', fontSize:'0.875rem' }}>Bakery Item Names</span>
-          </div>
-          <div style={{ padding:'1rem 1.5rem', display:'flex', gap:'0.75rem', flexWrap:'wrap', alignItems:'center' }}>
-            {names.map(n => (
-              <span key={n.id} style={{ display:'flex', alignItems:'center', gap:'0.4rem', padding:'0.25rem 0.6rem', background:'rgba(236,72,153,0.1)', border:'1px solid rgba(236,72,153,0.2)', borderRadius:20, fontSize:'0.8rem', color:'#fff' }}>
-                {n.name}
-                <button onClick={()=>deleteNameMut.mutate(n.id)} style={{ background:'none', border:'none', color:'#64748b', cursor:'pointer', padding:0, lineHeight:1 }}><X size={12}/></button>
-              </span>
-            ))}
-            <div style={{ display:'flex', gap:'0.5rem' }}>
-              <input className="input" style={{ width:160, padding:'0.35rem 0.6rem', fontSize:'0.8rem' }} value={addName} onChange={e=>setAddName(e.target.value)} placeholder="Add item name" onKeyDown={e=>e.key==='Enter'&&handleAddName()} />
-              <button className="btn btn-secondary" style={{ padding:'0.35rem 0.75rem', fontSize:'0.8rem' }} onClick={handleAddName}>Add</button>
+            <span style={{ fontSize:'0.75rem', color:'#64748b', marginLeft:'0.25rem' }}>({names.length})</span>
+            <span style={{ marginLeft:'auto', color:'#64748b', display:'flex' }}>{namesOpen ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}</span>
+          </button>
+          {namesOpen && (
+            <div style={{ padding:'0 1.25rem 1.25rem', borderTop:'1px solid rgba(255,255,255,0.06)', display:'flex', gap:'0.75rem', flexWrap:'wrap', alignItems:'center', paddingTop:'0.75rem' }}>
+              {names.map(n => (
+                <span key={n.id} style={{ display:'flex', alignItems:'center', gap:'0.4rem', padding:'0.25rem 0.6rem', background:'rgba(236,72,153,0.1)', border:'1px solid rgba(236,72,153,0.2)', borderRadius:20, fontSize:'0.8rem', color:'#fff' }}>
+                  {n.name}
+                  <button onClick={()=>deleteNameMut.mutate(n.id)} style={{ background:'none', border:'none', color:'#64748b', cursor:'pointer', padding:0, lineHeight:1 }}><X size={12}/></button>
+                </span>
+              ))}
+              {names.length === 0 && <span style={{ color:'#4a5568', fontSize:'0.8rem' }}>No names yet</span>}
+              <div style={{ display:'flex', gap:'0.5rem' }}>
+                <input className="input" style={{ width:160, padding:'0.35rem 0.6rem', fontSize:'0.8rem' }} value={addName} onChange={e=>setAddName(e.target.value)} placeholder="Add item name" onKeyDown={e=>e.key==='Enter'&&handleAddName()} />
+                <button className="btn btn-secondary" style={{ padding:'0.35rem 0.75rem', fontSize:'0.8rem' }} onClick={handleAddName}>Add</button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 

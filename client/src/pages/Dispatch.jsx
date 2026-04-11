@@ -4,7 +4,7 @@ import { api } from '../api.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { canEdit } from '../utils/permissions.js';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, X, Tag, TrendingUp } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Tag, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
 
 const today = () => new Date().toISOString().split('T')[0];
 const EMPTY = { notes: '', item: '', quantity: 0, unitCost: 0, openingStock: 0, addedStock: 0, lowStockThreshold: 0, unit: 'units', supplier: '' };
@@ -16,6 +16,7 @@ export default function Dispatch() {
   const qc = useQueryClient();
   const [modal, setModal] = useState({ open: false, mode: 'create', data: { ...EMPTY } });
   const [newItem, setNewItem] = useState('');
+  const [namesOpen, setNamesOpen] = useState(false);
 
   const { data: items = [] } = useQuery({ queryKey: ['dispatch-items'], queryFn: () => api.get('/dispatch/items') });
   const { data = [], isLoading } = useQuery({ queryKey: ['dispatch', today()], queryFn: () => api.get(`/dispatch?date=${today()}`) });
@@ -65,24 +66,30 @@ export default function Dispatch() {
       </div>
 
       {isAdmin && (
-        <div className="card" style={{ marginBottom: '1rem', padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <Tag size={16} color="#10b981" />
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <button onClick={() => setNamesOpen(o => !o)} style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.875rem 1.25rem', textAlign: 'left' }}>
+            <Tag size={15} color="#10b981" />
             <span style={{ fontWeight: 600, color: '#fff', fontSize: '0.875rem' }}>Persistent Item Names</span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            {items.map(it => (
-              <span key={it.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 9999, fontSize: '0.8rem', color: '#4ade80' }}>
-                {it.name}
-                <button onClick={() => { if (confirm(`Remove "${it.name}"?`)) deleteItem.mutate(it.id); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, lineHeight: 1, display: 'flex' }}><X size={12} /></button>
-              </span>
-            ))}
-            {items.length === 0 && <span style={{ color: '#4a5568', fontSize: '0.8rem' }}>No items yet</span>}
-          </div>
-          <form onSubmit={e => { e.preventDefault(); if (!newItem.trim()) return; addItem.mutate(newItem.trim()); }} style={{ display: 'flex', gap: '0.5rem' }}>
-            <input className="input" value={newItem} onChange={e => setNewItem(e.target.value)} placeholder="Add new item name..." style={{ flex: 1 }} />
-            <button type="submit" className="btn btn-primary" disabled={addItem.isPending}><Plus size={16} />Add</button>
-          </form>
+            <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '0.25rem' }}>({items.length})</span>
+            <span style={{ marginLeft: 'auto', color: '#64748b', display: 'flex' }}>{namesOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
+          </button>
+          {namesOpen && (
+            <div style={{ padding: '0 1.25rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', margin: '0.75rem 0' }}>
+                {items.map(it => (
+                  <span key={it.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 9999, fontSize: '0.8rem', color: '#4ade80' }}>
+                    {it.name}
+                    <button onClick={() => { if (confirm(`Remove "${it.name}"?`)) deleteItem.mutate(it.id); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, lineHeight: 1, display: 'flex' }}><X size={12} /></button>
+                  </span>
+                ))}
+                {items.length === 0 && <span style={{ color: '#4a5568', fontSize: '0.8rem' }}>No items yet</span>}
+              </div>
+              <form onSubmit={e => { e.preventDefault(); if (!newItem.trim()) return; addItem.mutate(newItem.trim()); }} style={{ display: 'flex', gap: '0.5rem' }}>
+                <input className="input" value={newItem} onChange={e => setNewItem(e.target.value)} placeholder="Add new item name..." style={{ flex: 1 }} />
+                <button type="submit" className="btn btn-primary" disabled={addItem.isPending}><Plus size={16} />Add</button>
+              </form>
+            </div>
+          )}
         </div>
       )}
 

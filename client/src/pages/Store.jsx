@@ -4,7 +4,7 @@ import { api } from '../api.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { canEdit } from '../utils/permissions.js';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, X, Tag, ArrowRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Tag, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 
 const today = () => new Date().toISOString().split('T')[0];
 const EMPTY = { itemName: '', quantity: 0, addedStock: 0, lowStockThreshold: 0, unit: 'units', supplier: '' };
@@ -17,6 +17,7 @@ export default function Store() {
   const [modal, setModal] = useState({ open: false, mode: 'create', data: EMPTY });
   const [newName, setNewName] = useState('');
   const [supplyOpen, setSupplyOpen] = useState(false);
+  const [namesOpen, setNamesOpen] = useState(false);
   const [supplyForm, setSupplyForm] = useState({ itemName:'', quantity:'', unit:'units', note:'' });
 
   const { data: names = [] } = useQuery({ queryKey: ['store-names'], queryFn: () => api.get('/store/names') });
@@ -76,25 +77,30 @@ export default function Store() {
       </div>
 
       {isAdmin && (
-        <div className="card" style={{ marginBottom: '1rem', padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <Tag size={16} color="#f59e0b" />
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <button onClick={() => setNamesOpen(o => !o)} style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.875rem 1.25rem', textAlign: 'left' }}>
+            <Tag size={15} color="#f59e0b" />
             <span style={{ fontWeight: 600, color: '#fff', fontSize: '0.875rem' }}>Persistent Item Names</span>
-            <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '0.5rem' }}>— these names survive day changes</span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            {names.map(n => (
-              <span key={n.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 9999, fontSize: '0.8rem', color: '#f59e0b' }}>
-                {n.name}
-                <button onClick={() => { if (confirm(`Remove "${n.name}"?`)) deleteName.mutate(n.id); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, lineHeight: 1, display: 'flex' }}><X size={12} /></button>
-              </span>
-            ))}
-            {names.length === 0 && <span style={{ color: '#4a5568', fontSize: '0.8rem' }}>No names yet</span>}
-          </div>
-          <form onSubmit={e => { e.preventDefault(); if (!newName.trim()) return; addName.mutate(newName.trim()); }} style={{ display: 'flex', gap: '0.5rem' }}>
-            <input className="input" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Add new item name..." style={{ flex: 1 }} />
-            <button type="submit" className="btn btn-primary" disabled={addName.isPending}><Plus size={16} />Add</button>
-          </form>
+            <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '0.25rem' }}>({names.length})</span>
+            <span style={{ marginLeft: 'auto', color: '#64748b', display: 'flex' }}>{namesOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
+          </button>
+          {namesOpen && (
+            <div style={{ padding: '0 1.25rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', margin: '0.75rem 0' }}>
+                {names.map(n => (
+                  <span key={n.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 9999, fontSize: '0.8rem', color: '#f59e0b' }}>
+                    {n.name}
+                    <button onClick={() => { if (confirm(`Remove "${n.name}"?`)) deleteName.mutate(n.id); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, lineHeight: 1, display: 'flex' }}><X size={12} /></button>
+                  </span>
+                ))}
+                {names.length === 0 && <span style={{ color: '#4a5568', fontSize: '0.8rem' }}>No names yet</span>}
+              </div>
+              <form onSubmit={e => { e.preventDefault(); if (!newName.trim()) return; addName.mutate(newName.trim()); }} style={{ display: 'flex', gap: '0.5rem' }}>
+                <input className="input" value={newName} onChange={e => setNewName(e.target.value)} placeholder="Add new item name..." style={{ flex: 1 }} />
+                <button type="submit" className="btn btn-primary" disabled={addName.isPending}><Plus size={16} />Add</button>
+              </form>
+            </div>
+          )}
         </div>
       )}
 

@@ -4,7 +4,7 @@ import { api } from '../api.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { canEdit } from '../utils/permissions.js';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, X, Tag, ArrowRight, PackageCheck } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Tag, ArrowRight, PackageCheck, ChevronDown, ChevronUp } from 'lucide-react';
 
 const today = () => new Date().toISOString().split('T')[0];
 const EMPTY = (username = '') => ({ product: '', quantityProduced: 0, unit: 'units', baker: username, note: '' });
@@ -17,6 +17,7 @@ export default function Production() {
   const [modal, setModal] = useState({ open: false, mode: 'create', data: EMPTY() });
   const [newProduct, setNewProduct] = useState('');
   const [supplyOpen, setSupplyOpen] = useState(false);
+  const [namesOpen, setNamesOpen] = useState(false);
   const [supplyForm, setSupplyForm] = useState({ itemName:'', quantity:'', unit:'units', note:'' });
 
   const { data: products = [] } = useQuery({ queryKey: ['production-products'], queryFn: () => api.get('/production/products') });
@@ -68,24 +69,30 @@ export default function Production() {
       </div>
 
       {isAdmin && (
-        <div className="card" style={{ marginBottom: '1rem', padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <Tag size={16} color="#3b82f6" />
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <button onClick={() => setNamesOpen(o => !o)} style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.875rem 1.25rem', textAlign: 'left' }}>
+            <Tag size={15} color="#3b82f6" />
             <span style={{ fontWeight: 600, color: '#fff', fontSize: '0.875rem' }}>Persistent Product Names</span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            {products.map(p => (
-              <span key={p.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 9999, fontSize: '0.8rem', color: '#60a5fa' }}>
-                {p.name}
-                <button onClick={() => { if (confirm(`Remove "${p.name}"?`)) deleteProduct.mutate(p.id); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, lineHeight: 1, display: 'flex' }}><X size={12} /></button>
-              </span>
-            ))}
-            {products.length === 0 && <span style={{ color: '#4a5568', fontSize: '0.8rem' }}>No products yet</span>}
-          </div>
-          <form onSubmit={e => { e.preventDefault(); if (!newProduct.trim()) return; addProduct.mutate(newProduct.trim()); }} style={{ display: 'flex', gap: '0.5rem' }}>
-            <input className="input" value={newProduct} onChange={e => setNewProduct(e.target.value)} placeholder="Add new product name..." style={{ flex: 1 }} />
-            <button type="submit" className="btn btn-primary" disabled={addProduct.isPending}><Plus size={16} />Add</button>
-          </form>
+            <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '0.25rem' }}>({products.length})</span>
+            <span style={{ marginLeft: 'auto', color: '#64748b', display: 'flex' }}>{namesOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
+          </button>
+          {namesOpen && (
+            <div style={{ padding: '0 1.25rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', margin: '0.75rem 0' }}>
+                {products.map(p => (
+                  <span key={p.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 9999, fontSize: '0.8rem', color: '#60a5fa' }}>
+                    {p.name}
+                    <button onClick={() => { if (confirm(`Remove "${p.name}"?`)) deleteProduct.mutate(p.id); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, lineHeight: 1, display: 'flex' }}><X size={12} /></button>
+                  </span>
+                ))}
+                {products.length === 0 && <span style={{ color: '#4a5568', fontSize: '0.8rem' }}>No products yet</span>}
+              </div>
+              <form onSubmit={e => { e.preventDefault(); if (!newProduct.trim()) return; addProduct.mutate(newProduct.trim()); }} style={{ display: 'flex', gap: '0.5rem' }}>
+                <input className="input" value={newProduct} onChange={e => setNewProduct(e.target.value)} placeholder="Add new product name..." style={{ flex: 1 }} />
+                <button type="submit" className="btn btn-primary" disabled={addProduct.isPending}><Plus size={16} />Add</button>
+              </form>
+            </div>
+          )}
         </div>
       )}
 

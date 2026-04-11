@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, X, Tag, ArrowRight, PackageCheck } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Tag, ArrowRight, PackageCheck, ChevronDown, ChevronUp } from 'lucide-react';
 import { canEdit } from '../utils/permissions.js';
 
 const today = () => new Date().toISOString().split('T')[0];
@@ -17,6 +17,7 @@ export default function Packaging() {
   const [modal, setModal] = useState({ open: false, mode: 'create', data: EMPTY });
   const [newType, setNewType] = useState('');
   const [supplyOpen, setSupplyOpen] = useState(false);
+  const [namesOpen, setNamesOpen] = useState(false);
   const [supplyForm, setSupplyForm] = useState({ itemName:'', quantity:'', unit:'units', note:'' });
 
   const { data: types = [] } = useQuery({ queryKey: ['package-types'], queryFn: () => api.get('/packages/types') });
@@ -89,24 +90,30 @@ export default function Packaging() {
       )}
 
       {isAdmin && (
-        <div className="card" style={{ marginBottom: '1rem', padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <Tag size={16} color="#ec4899" />
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <button onClick={() => setNamesOpen(o => !o)} style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.875rem 1.25rem', textAlign: 'left' }}>
+            <Tag size={15} color="#ec4899" />
             <span style={{ fontWeight: 600, color: '#fff', fontSize: '0.875rem' }}>Persistent Package Types</span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            {types.map(t => (
-              <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', background: 'rgba(236,72,153,0.1)', border: '1px solid rgba(236,72,153,0.2)', borderRadius: 9999, fontSize: '0.8rem', color: '#f472b6' }}>
-                {t.name}
-                <button onClick={() => { if (confirm(`Remove "${t.name}"?`)) deleteType.mutate(t.id); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, lineHeight: 1, display: 'flex' }}><X size={12} /></button>
-              </span>
-            ))}
-            {types.length === 0 && <span style={{ color: '#4a5568', fontSize: '0.8rem' }}>No types yet</span>}
-          </div>
-          <form onSubmit={e => { e.preventDefault(); if (!newType.trim()) return; addType.mutate(newType.trim()); }} style={{ display: 'flex', gap: '0.5rem' }}>
-            <input className="input" value={newType} onChange={e => setNewType(e.target.value)} placeholder="Add new package type..." style={{ flex: 1 }} />
-            <button type="submit" className="btn btn-primary" disabled={addType.isPending}><Plus size={16} />Add</button>
-          </form>
+            <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '0.25rem' }}>({types.length})</span>
+            <span style={{ marginLeft: 'auto', color: '#64748b', display: 'flex' }}>{namesOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
+          </button>
+          {namesOpen && (
+            <div style={{ padding: '0 1.25rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', margin: '0.75rem 0' }}>
+                {types.map(t => (
+                  <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', background: 'rgba(236,72,153,0.1)', border: '1px solid rgba(236,72,153,0.2)', borderRadius: 9999, fontSize: '0.8rem', color: '#f472b6' }}>
+                    {t.name}
+                    <button onClick={() => { if (confirm(`Remove "${t.name}"?`)) deleteType.mutate(t.id); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, lineHeight: 1, display: 'flex' }}><X size={12} /></button>
+                  </span>
+                ))}
+                {types.length === 0 && <span style={{ color: '#4a5568', fontSize: '0.8rem' }}>No types yet</span>}
+              </div>
+              <form onSubmit={e => { e.preventDefault(); if (!newType.trim()) return; addType.mutate(newType.trim()); }} style={{ display: 'flex', gap: '0.5rem' }}>
+                <input className="input" value={newType} onChange={e => setNewType(e.target.value)} placeholder="Add new package type..." style={{ flex: 1 }} />
+                <button type="submit" className="btn btn-primary" disabled={addType.isPending}><Plus size={16} />Add</button>
+              </form>
+            </div>
+          )}
         </div>
       )}
 
