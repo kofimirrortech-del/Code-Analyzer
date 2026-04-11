@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api.js';
@@ -304,10 +304,29 @@ function Sidebar({ user, onClose }) {
 export default function Layout({ children }) {
   const { user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const mainRef = useRef(null);
+  const lastScrollY = useRef(0);
+
   const { data: requestDepts = [] } = useQuery({
     queryKey: ['request-depts'], queryFn: () => api.get('/notifications/request-depts'),
     enabled: !!user,
   });
+
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const handler = () => {
+      const cur = el.scrollTop;
+      const delta = cur - lastScrollY.current;
+      if (delta > 20) setSidebarVisible(false);
+      else if (delta < -10) setSidebarVisible(true);
+      lastScrollY.current = cur;
+    };
+    el.addEventListener('scroll', handler, { passive: true });
+    return () => el.removeEventListener('scroll', handler);
+  }, []);
+
   if (!user) return null;
   const isAdmin = user.role === 'ADMIN';
   const userDept = DEPT_FROM_ROLE[user.role] || '';
@@ -315,9 +334,11 @@ export default function Layout({ children }) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a18' }}>
-      <aside className="glass" style={{ width: 236, flexShrink: 0, display: 'none', flexDirection: 'column', borderTop: 'none', borderLeft: 'none', borderBottom: 'none', borderRadius: 0, minHeight: '100vh', position: 'sticky', top: 0 }} id="desktop-sidebar">
-        <Sidebar user={user} onClose={() => {}} />
-      </aside>
+      <div id="sidebar-wrapper" style={{ width: sidebarVisible ? 236 : 0, flexShrink: 0, overflow: 'hidden', transition: 'width 0.28s cubic-bezier(0.4,0,0.2,1)', display: 'none' }}>
+        <aside className="glass" id="desktop-sidebar" style={{ width: 236, flexShrink: 0, display: 'flex', flexDirection: 'column', borderTop: 'none', borderLeft: 'none', borderBottom: 'none', borderRadius: 0, minHeight: '100vh', position: 'sticky', top: 0 }}>
+          <Sidebar user={user} onClose={() => {}} />
+        </aside>
+      </div>
 
       <div className="glass" style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 56, zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderRadius: 0 }} id="mobile-topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -336,7 +357,7 @@ export default function Layout({ children }) {
         </div>
       )}
 
-      <main style={{ flex: 1, padding: '1.5rem', paddingTop: 'calc(56px + 1.5rem)', overflowY: 'auto', maxWidth: '100%' }} id="main-content">
+      <main ref={mainRef} style={{ flex: 1, padding: '1.5rem', paddingTop: 'calc(56px + 1.5rem)', overflowY: 'auto', maxWidth: '100%' }} id="main-content">
         <div style={{ maxWidth: 1400, margin: '0 auto' }}>
           {canRequest && <RequestPanel user={user} />}
           {children}
@@ -345,7 +366,7 @@ export default function Layout({ children }) {
 
       <style>{`
         @media (min-width: 1024px) {
-          #desktop-sidebar { display: flex !important; }
+          #sidebar-wrapper { display: flex !important; }
           #mobile-topbar   { display: none !important; }
           #main-content    { padding-top: 1.5rem !important; }
         }
