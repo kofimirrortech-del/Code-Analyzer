@@ -108,7 +108,7 @@ export default function Store() {
         {isLoading ? <div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto' }} /></div> : (
           <div className="table-wrap">
             <table>
-              <thead><tr>{['#','Item Name','Opening','Added','Closing','Low Threshold','Unit','Supplier','Recorded By','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+              <thead><tr>{['#','Item Name','Opening','Added','Closing','Low Threshold','Quantity','Supplier','Recorded By','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
               <tbody>
                 {data.length === 0 ? (
                   <tr><td colSpan={11} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No records for today. {editable && 'Add one above.'}</td></tr>
@@ -116,7 +116,7 @@ export default function Store() {
                   <tr key={item.id}>
                     <td style={{ color: '#4a5568' }}>{i + 1}</td>
                     <td style={{ color: '#fff', fontWeight: 500 }}>{item.itemName}</td>
-                    <td>{item.quantity}</td>
+                    <td>{item.unit}</td>
                     <td>{item.addedStock}</td>
                     <td><span className={item.isLowStock ? 'badge badge-red' : 'badge badge-green'}>{item.closingStock}</span></td>
                     <td>{item.lowStockThreshold}</td>
