@@ -8,6 +8,7 @@ import { Plus, Pencil, Trash2, X, Tag, ArrowRight, PackageCheck, ChevronDown, Ch
 
 const today = () => new Date().toISOString().split('T')[0];
 const EMPTY = (username = '') => ({ product: '', quantityProduced: 0, unit: 'units', baker: username, note: '' });
+const formatQty = (value, unit = '') => `${value ?? 0}${unit || ''}`;
 
 export default function Production() {
   const { user } = useAuth();
@@ -100,7 +101,7 @@ export default function Production() {
         {isLoading ? <div style={{ padding: '3rem', textAlign: 'center' }}><div className="spinner" style={{ margin: '0 auto' }} /></div> : (
           <div className="table-wrap">
             <table>
-              <thead><tr>{['#','Product','Unit','Qty Produced','Baker','Note','Recorded By','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+              <thead><tr>{['#','Product','Qty Produced','Baker','Note','Recorded By','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
               <tbody>
                 {data.length === 0 ? (
                   <tr><td colSpan={9} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No production records for today.</td></tr>
@@ -108,8 +109,7 @@ export default function Production() {
                   <tr key={item.id}>
                     <td style={{ color: '#4a5568' }}>{i + 1}</td>
                     <td style={{ color: '#fff', fontWeight: 500 }}>{item.product}</td>
-                    <td>{item.unit}</td>
-                    <td><span className="badge badge-amber">{item.quantityProduced}</span></td>
+                    <td><span className="badge badge-amber">{formatQty(item.quantityProduced, item.unit)}</span></td>
                     <td>{item.baker}</td>
                     <td style={{ color: '#64748b', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.note || '—'}</td>
                     <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{item.recordedBy || '—'}</td>

@@ -9,6 +9,7 @@ import { Plus, Pencil, Trash2, X, Tag, ArrowRight, ChevronDown, ChevronUp } from
 const today = () => new Date().toISOString().split('T')[0];
 const EMPTY = { itemName: '', quantity: 0, addedStock: 0, lowStockThreshold: 0, supplier: '' };
 const UNIT_OPTIONS = ['kg', 'g', 'mg', 'units'];
+const formatQty = (value, unit = '') => `${value ?? 0}${unit || ''}`;
 
 export default function Store() {
   const { user } = useAuth();
@@ -123,9 +124,9 @@ export default function Store() {
                   <tr key={item.id}>
                     <td style={{ color: '#4a5568' }}>{i + 1}</td>
                     <td style={{ color: '#fff', fontWeight: 500 }}>{item.itemName}</td>
-                    <td>{item.quantity}</td>
-                    <td>{item.addedStock}</td>
-                    <td><span className={item.isLowStock ? 'badge badge-red' : 'badge badge-green'}>{item.closingStock}</span></td>
+                    <td>{formatQty(item.quantity, item.unit)}</td>
+                    <td>{formatQty(item.addedStock, item.unit)}</td>
+                    <td><span className={item.isLowStock ? 'badge badge-red' : 'badge badge-green'}>{formatQty(item.closingStock, item.unit)}</span></td>
                     <td>{item.lowStockThreshold}</td>
                     <td>{item.quantity}</td>
                     <td>{item.supplier}</td>
