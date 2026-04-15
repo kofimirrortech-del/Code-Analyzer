@@ -7,9 +7,7 @@ import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2, X, Tag, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 
 const today = () => new Date().toISOString().split('T')[0];
-const EMPTY = { itemName: '', quantity: 0, addedStock: 0, lowStockThreshold: 0, supplier: '' };
-const UNIT_OPTIONS = ['kg', 'g', 'mg', 'units'];
-const formatQty = (value, unit = '') => `${value ?? 0}${unit || ''}`;
+const EMPTY = { itemName: '', quantity: 0, addedStock: 0, lowStockThreshold: 0, unit: 'units', supplier: '' };
 
 export default function Store() {
   const { user } = useAuth();
@@ -20,8 +18,7 @@ export default function Store() {
   const [newName, setNewName] = useState('');
   const [supplyOpen, setSupplyOpen] = useState(false);
   const [namesOpen, setNamesOpen] = useState(false);
-  const [supplyForm, setSupplyForm] = useState({ itemName:'', quantity:'', note:'' });
-  const [unitOptions, setUnitOptions] = useState(UNIT_OPTIONS);
+  const [supplyForm, setSupplyForm] = useState({ itemName:'', quantity:'', unit:'units', note:'' });
 
   const { data: names = [] } = useQuery({ queryKey: ['store-names'], queryFn: () => api.get('/store/names') });
   const { data = [], isLoading } = useQuery({ queryKey: ['store', today()], queryFn: () => api.get(`/store?date=${today()}`) });
@@ -48,7 +45,7 @@ export default function Store() {
   });
   const supply = useMutation({
     mutationFn: d => api.post('/transfers', d),
-    onSuccess: () => { qc.invalidateQueries(['store']); setSupplyOpen(false); setSupplyForm({ itemName:'', quantity:'', note:'' }); toast.success('Supplied to Ingredients!'); },
+    onSuccess: () => { qc.invalidateQueries(['store']); setSupplyOpen(false); setSupplyForm({ itemName:'', quantity:'', unit:'units', note:'' }); toast.success('Supplied to Ingredients!'); },
     onError: e => toast.error(e.message || 'Transfer failed'),
   });
 
@@ -66,12 +63,7 @@ export default function Store() {
   }
   const handleSupply = () => {
     if (!supplyForm.itemName || !supplyForm.quantity) { toast.error('Item and quantity required'); return; }
-    supply.mutate({ fromDept:'store', toDept:'ingredients', itemName:supplyForm.itemName, quantity:parseFloat(supplyForm.quantity), note:supplyForm.note });
-  };
-  const addUnitOption = value => {
-    const next = value.trim();
-    if (!next) return;
-    setUnitOptions(prev => prev.includes(next) ? prev : [...prev, next]);
+    supply.mutate({ fromDept:'store', toDept:'ingredients', itemName:supplyForm.itemName, quantity:parseFloat(supplyForm.quantity), unit:supplyForm.unit, note:supplyForm.note });
   };
 
   return (
@@ -124,9 +116,9 @@ export default function Store() {
                   <tr key={item.id}>
                     <td style={{ color: '#4a5568' }}>{i + 1}</td>
                     <td style={{ color: '#fff', fontWeight: 500 }}>{item.itemName}</td>
-                    <td>{formatQty(item.quantity, item.unit)}</td>
-                    <td>{formatQty(item.addedStock, item.unit)}</td>
-                    <td><span className={item.isLowStock ? 'badge badge-red' : 'badge badge-green'}>{formatQty(item.closingStock, item.unit)}</span></td>
+                    <td>{item.quantity}</td>
+                    <td>{item.addedStock}</td>
+                    <td><span className={item.isLowStock ? 'badge badge-red' : 'badge badge-green'}>{item.closingStock}</span></td>
                     <td>{item.lowStockThreshold}</td>
                     <td>{item.quantity}</td>
                     <td>{item.supplier}</td>
@@ -152,7 +144,10 @@ export default function Store() {
             <h3 className="modal-title" style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}><ArrowRight size={18} color="#f59e0b"/> Supply to Ingredients</h3>
             <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
               <div><label className="label">Item Name</label><input className="input" list="store-supply-names" value={supplyForm.itemName} onChange={e=>setSF('itemName',e.target.value)} placeholder="Item name"/><datalist id="store-supply-names">{names.map(n=><option key={n.id} value={n.name}/>)}</datalist></div>
-              <div><label className="label">Quantity to Supply</label><input className="input" type="number" min="0" step="0.01" value={supplyForm.quantity} onChange={e=>setSF('quantity',e.target.value)} placeholder="0"/></div>
+              <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:'0.75rem' }}>
+                <div><label className="label">Quantity to Supply</label><input className="input" type="number" min="0" step="0.01" value={supplyForm.quantity} onChange={e=>setSF('quantity',e.target.value)} placeholder="0"/></div>
+                <div><label className="label">Unit</label><input className="input" value={supplyForm.unit} onChange={e=>setSF('unit',e.target.value)} placeholder="units"/></div>
+              </div>
               <div><label className="label">Note (optional)</label><input className="input" value={supplyForm.note} onChange={e=>setSF('note',e.target.value)} placeholder="Optional note"/></div>
             </div>
             <div className="modal-actions">
@@ -179,22 +174,10 @@ export default function Store() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div>
                   <label className="label">Opening Stock {modal.mode === 'create' && <span style={{ fontSize:'0.7rem', color:'#64748b', fontWeight:400 }}>(auto-filled from last closing)</span>}</label>
-                  <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr', gap:'0.75rem' }}>
-                    <input className="input" type="number" step="0.01" value={modal.data.quantity} onChange={e => set('quantity', e.target.value)} style={modal.mode === 'create' ? { background:'rgba(100,116,139,0.08)', color:'#94a3b8' } : {}} />
-                    <select className="input" value={modal.data.unit || 'units'} onChange={e => set('unit', e.target.value)}>
-                      {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
-                  </div>
+                  <input className="input" type="number" step="0.01" value={modal.data.quantity} onChange={e => set('quantity', e.target.value)} style={modal.mode === 'create' ? { background:'rgba(100,116,139,0.08)', color:'#94a3b8' } : {}} />
                 </div>
                 <div><label className="label">Added Stock (Received)</label><input className="input" type="number" step="0.01" value={modal.data.addedStock} onChange={e => set('addedStock', e.target.value)} /></div>
                 <div><label className="label">Low Stock Threshold</label><input className="input" type="number" step="0.01" value={modal.data.lowStockThreshold} onChange={e => set('lowStockThreshold', e.target.value)} /></div>
-                <div>
-                  <label className="label">Add Unit Option</label>
-                  <div style={{ display:'flex', gap:'0.5rem' }}>
-                    <input className="input" placeholder="Add custom unit..." onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addUnitOption(e.currentTarget.value); e.currentTarget.value = ''; } }} />
-                    <button type="button" className="btn btn-secondary" onClick={e => { const input = e.currentTarget.parentElement.querySelector('input'); addUnitOption(input.value); input.value = ''; }}>Add</button>
-                  </div>
-                </div>
                 <div style={{ gridColumn: '1 / -1' }}><label className="label">Supplier</label><input className="input" value={modal.data.supplier} onChange={e => set('supplier', e.target.value)} placeholder="Supplier name" /></div>
               </div>
               <div style={{ padding: '0.6rem 0.9rem', background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.2)', borderRadius: 8, fontSize: '0.8rem', color: '#94a3b8' }}>
