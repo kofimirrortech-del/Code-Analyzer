@@ -19,9 +19,16 @@ export default function Store() {
   const [supplyOpen, setSupplyOpen] = useState(false);
   const [namesOpen, setNamesOpen] = useState(false);
   const [supplyForm, setSupplyForm] = useState({ itemName:'', quantity:'', unit:'units', note:'' });
+  const [search, setSearch] = useState('');
 
   const { data: names = [] } = useQuery({ queryKey: ['store-names'], queryFn: () => api.get('/store/names') });
   const { data = [], isLoading } = useQuery({ queryKey: ['store', today()], queryFn: () => api.get(`/store?date=${today()}`) });
+  const filteredData = data.filter(item =>
+    [item.itemName, item.supplier, item.recordedBy, item.date, item.unit]
+      .join(' ')
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
 
   const addName = useMutation({
     mutationFn: name => api.post('/store/names', { name }),
@@ -75,6 +82,9 @@ export default function Store() {
           {editable && <button className="btn btn-primary" onClick={() => setModal({ open: true, mode: 'create', data: { ...EMPTY } })}><Plus size={16} />Add Record</button>}
         </div>
       </div>
+      <div style={{ marginBottom: '1rem', maxWidth: 360 }}>
+        <input className="input" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search store items..." />
+      </div>
 
       {isAdmin && (
         <div className="card" style={{ marginBottom: '1rem' }}>
@@ -110,9 +120,9 @@ export default function Store() {
             <table>
               <thead><tr>{['#','Item Name','Opening Stock','Added Stock','Closing Stock','Low Threshold','Quantity','Supplier','Recorded By','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
               <tbody>
-                {data.length === 0 ? (
+                {filteredData.length === 0 ? (
                   <tr><td colSpan={11} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No records for today. {editable && 'Add one above.'}</td></tr>
-                ) : data.map((item, i) => (
+                ) : filteredData.map((item, i) => (
                   <tr key={item.id}>
                     <td style={{ color: '#4a5568' }}>{i + 1}</td>
                     <td style={{ color: '#fff', fontWeight: 500 }}>{item.itemName}</td>

@@ -20,11 +20,18 @@ export default function Production() {
   const [supplyOpen, setSupplyOpen] = useState(false);
   const [namesOpen, setNamesOpen] = useState(false);
   const [supplyForm, setSupplyForm] = useState({ itemName:'', quantity:'', unit:'units', note:'' });
+  const [search, setSearch] = useState('');
 
   const { data: products = [] } = useQuery({ queryKey: ['production-products'], queryFn: () => api.get('/production/products') });
   const { data = [], isLoading } = useQuery({ queryKey: ['production', today()], queryFn: () => api.get(`/production?date=${today()}`) });
   const { data: receivedRaw = [] } = useQuery({ queryKey: ['transfers-to-production', today()], queryFn: () => api.get(`/transfers?date=${today()}&dept=production`) });
   const received = receivedRaw.filter(r => r.toDept === 'production');
+  const filteredData = data.filter(item =>
+    [item.product, item.baker, item.note, item.recordedBy, item.date, item.unit]
+      .join(' ')
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
 
   const addProduct = useMutation({
     mutationFn: name => api.post('/production/products', { name }),
@@ -68,6 +75,9 @@ export default function Production() {
           {editable && <button className="btn btn-primary" onClick={() => setModal({ open: true, mode: 'create', data: EMPTY(user?.username) })}><Plus size={16} />Add Record</button>}
         </div>
       </div>
+      <div style={{ marginBottom: '1rem', maxWidth: 360 }}>
+        <input className="input" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search production items..." />
+      </div>
 
       {isAdmin && (
         <div className="card" style={{ marginBottom: '1rem' }}>
@@ -103,9 +113,9 @@ export default function Production() {
             <table>
               <thead><tr>{['#','Product','Qty Produced','Baker','Note','Recorded By','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
               <tbody>
-                {data.length === 0 ? (
+                {filteredData.length === 0 ? (
                   <tr><td colSpan={9} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No production records for today.</td></tr>
-                ) : data.map((item, i) => (
+                ) : filteredData.map((item, i) => (
                   <tr key={item.id}>
                     <td style={{ color: '#4a5568' }}>{i + 1}</td>
                     <td style={{ color: '#fff', fontWeight: 500 }}>{item.product}</td>

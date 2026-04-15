@@ -19,11 +19,18 @@ export default function Packaging() {
   const [supplyOpen, setSupplyOpen] = useState(false);
   const [namesOpen, setNamesOpen] = useState(false);
   const [supplyForm, setSupplyForm] = useState({ itemName:'', quantity:'', unit:'units', note:'' });
+  const [search, setSearch] = useState('');
 
   const { data: types = [] } = useQuery({ queryKey: ['package-types'], queryFn: () => api.get('/packages/types') });
   const { data = [], isLoading } = useQuery({ queryKey: ['packages', today()], queryFn: () => api.get(`/packages?date=${today()}`) });
   const { data: receivedRaw = [] } = useQuery({ queryKey: ['transfers-to-packaging', today()], queryFn: () => api.get(`/transfers?date=${today()}&dept=packaging`) });
   const received = receivedRaw.filter(r => r.toDept === 'packaging');
+  const filteredData = data.filter(item =>
+    [item.packageType, item.recordedBy, item.date]
+      .join(' ')
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
 
   const addType = useMutation({
     mutationFn: name => api.post('/packages/types', { name }),
@@ -67,6 +74,9 @@ export default function Packaging() {
           {editable && <button className="btn btn-secondary" onClick={() => setSupplyOpen(true)} style={{ gap:'0.4rem' }}><ArrowRight size={15}/>Supply to Dispatch</button>}
           {editable && <button className="btn btn-primary" onClick={() => setModal({ open: true, mode: 'create', data: { ...EMPTY } })}><Plus size={16} />Add Record</button>}
         </div>
+      </div>
+      <div style={{ marginBottom: '1rem', maxWidth: 360 }}>
+        <input className="input" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search packaging items..." />
       </div>
 
       {supplyOpen && (
@@ -123,9 +133,9 @@ export default function Packaging() {
             <table>
               <thead><tr>{['#','Package Type','Opening','Added','Supply','Closing','Threshold','Recorded By','Date','Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
               <tbody>
-                {data.length === 0 ? (
+                {filteredData.length === 0 ? (
                   <tr><td colSpan={10} style={{ textAlign: 'center', color: '#4a5568', padding: '3rem' }}>No records for today.</td></tr>
-                ) : data.map((item, i) => (
+                ) : filteredData.map((item, i) => (
                   <tr key={item.id}>
                     <td style={{ color: '#4a5568' }}>{i + 1}</td>
                     <td style={{ color: '#fff', fontWeight: 500 }}>{item.packageType}</td>
